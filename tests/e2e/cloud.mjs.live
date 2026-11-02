@@ -1,0 +1,30 @@
+// Live cloud check (not part of the regular run): create an account through Settings, sync, read it back.
+// Run: node tests/e2e/run.mjs cloud   after renaming to cloud.mjs, with a throwaway email in CLOUD_TEST_EMAIL.
+import puppeteer from 'puppeteer-core';
+const EMAIL = process.env.CLOUD_TEST_EMAIL, PW = 'Boethos-test-12345';
+const b = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
+const p = await b.newPage(); await p.setViewport({ width: 1366, height: 900 });
+const errors = []; p.on('pageerror', e => errors.push(e.message));
+const W = (ms = 600) => new Promise(r => setTimeout(r, ms));
+let pass = 0, fail = 0; const ok = (n, c, x = '') => { console.log((c ? 'PASS  ' : 'FAIL  ') + n + (x ? '  [' + x + ']' : '')); c ? pass++ : fail++; };
+await p.goto('http://localhost:4319/', { waitUntil: 'networkidle0' });
+await p.evaluate(async () => { const M = await import('/src/store/ministry.js'); const L = await import('/src/store/life.js'); const l = L.initialLife(); l.setupDone = true; const m = M.initialMinistry(); m.people.push({ ...M.blankPerson('Cloud Check', '2026-11-02'), id: 'cc' }); localStorage.clear(); localStorage.setItem('shepherd_os_v1', JSON.stringify({ onboardingDone: true, name: 'Mekom', startDate: '2026-11-01', ministry: m, life: l, prayerSessions: [], events: [], scriptureMemory: [] })); sessionStorage.setItem('boethos_session', '1'); });
+await p.reload({ waitUntil: 'networkidle0' });
+await p.goto('http://localhost:4319/#/settings', { waitUntil: 'networkidle0' }); await W(800);
+ok('the project is built in: no keys to paste', await p.evaluate(() => document.querySelector('#cloud').textContent.includes('built into this app')));
+await p.$$eval('#cloud button', els => els.find(x => x.textContent.includes('First time')).click()); await W(200);
+await p.type('#cloud input[type=email]', EMAIL); await p.type('#cloud input[type=password]', PW);
+await p.$$eval('#cloud button[type=submit]', els => els[0].click()); await W(4000);
+const c = await p.evaluate(() => JSON.parse(localStorage.getItem('boethos_cloud') || '{}'));
+ok('creating an account signs you in', !!c.session?.access, c.lastError || '');
+await W(5000);
+const c2 = await p.evaluate(() => JSON.parse(localStorage.getItem('boethos_cloud') || '{}'));
+ok('your data saves to the cloud by itself', c2.status === 'synced' && c2.version >= 1, `${c2.status} v${c2.version} ${c2.lastError || ''}`);
+const remote = await p.evaluate(async () => { const { fetchRemote } = await import('/src/lib/cloud.js'); const r = await fetchRemote(); return r && JSON.stringify(r).includes('Cloud Check'); });
+ok('reading it back from the cloud returns the same people', remote);
+const q = await p.evaluate(async (k) => { const c = JSON.parse(localStorage.getItem('boethos_cloud')); const r = await fetch(c.url + '/rest/v1/reminder_queue?select=category&limit=500', { headers: { apikey: c.anonKey, Authorization: 'Bearer ' + c.session.access } }); return r.ok ? (await r.json()).map(x => x.category) : 'HTTP ' + r.status; });
+ok('the next 7 days of reminders are queued for push', Array.isArray(q) && q.includes('tele') && q.includes('quiet'), Array.isArray(q) ? [...new Set(q)].join(',') : q);
+const userId = c.session?.userId;
+console.log('USER_ID=' + userId);
+console.log(errors.length ? errors : 'no page errors'); console.log(`${pass}/${pass + fail} passed`);
+await b.close();

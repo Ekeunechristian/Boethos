@@ -1,0 +1,12 @@
+# Installed packages and build output
+node_modules/
+dist/
+# Local deploy state
+.netlify/
+.wrangler/
+# Your local settings (public project keys; copy .env.example to .env)
+.env
+# Test screenshots
+tests/e2e/shots/
+# Old UI copies, kept on this computer only
+_backup-*/

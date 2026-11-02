@@ -1,0 +1,52 @@
+// Poimainō dashboard: the rota, a call, PVCI, and balance
+import puppeteer from 'puppeteer-core';
+const b = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
+const p = await b.newPage(); await p.setViewport({ width: 1366, height: 900 });
+const errors = []; p.on('pageerror', e => errors.push(e.message));
+const W = (ms = 500) => new Promise(r => setTimeout(r, ms));
+const S = () => p.evaluate(() => JSON.parse(localStorage.getItem('shepherd_os_v1')));
+let pass = 0, fail = 0; const ok = (n, c, x = '') => { console.log((c ? 'PASS  ' : 'FAIL  ') + n + (x ? '  [' + x + ']' : '')); c ? pass++ : fail++; };
+await p.goto('http://localhost:4319/', { waitUntil: 'networkidle0' });
+await p.evaluate(async () => {
+  const M = await import('/src/store/ministry.js'); const L = await import('/src/store/life.js');
+  const today = new Date().toLocaleDateString('en-CA');
+  let m = M.initialMinistry(); m.settings.meetingsFrom = M.addDays(today, -14); m.settings.times = { thu: '19:00', sat: '10:00' };
+  const R = (a) => { m = M.ministryReducer(m, a, today); };
+  [['ama', 'Ama Mensah', 'stable'], ['kwame', 'Kwame Boateng', 'member'], ['grace', 'Grace Lin', 'member'], ['esi', 'Esi Owusu', 'visitor'], ['kofi', 'Kofi Asante', 'member'], ['abena', 'Abena Ofori', 'returning'], ['yaw', 'Yaw Darko', 'member']].forEach(([id, name, membership]) => R({ type: 'M_PERSON_ADD', data: { id, name, membership, phone: '07700900111' } }));
+  const l = L.initialLife(); l.setupDone = true;
+  localStorage.clear(); localStorage.setItem('shepherd_os_v1', JSON.stringify({ onboardingDone: true, name: 'Mekom', startDate: M.addDays(today, -20), ministry: m, life: l, prayerSessions: [], events: [], scriptureMemory: [] })); sessionStorage.setItem('boethos_session', '1');
+});
+await p.reload({ waitUntil: 'networkidle0' });
+await p.goto('http://localhost:4319/#/poimaino', { waitUntil: 'networkidle0' }); await W(900);
+let s = await S();
+const days = s.ministry.people.map(x => x.callDay);
+ok('everyone gets a call day by the rules: Birmingham Monday to Wednesday', days.every(d => d >= 1 && d <= 3) && new Set(days).size === 3, days.join(','));
+// put Ama on today's rota, then record the call
+const wd = new Date().getDay();
+await p.evaluate((wd) => { const s = JSON.parse(localStorage.getItem('shepherd_os_v1')); s.ministry.people.forEach(x => { if (x.callDay === wd) x.callDay = (wd + 1) % 7; }); s.ministry.people.find(x => x.id === 'ama').callDay = wd; localStorage.setItem('shepherd_os_v1', JSON.stringify(s)); }, wd);
+await p.reload({ waitUntil: 'networkidle0' }); await W(800);
+const names = await p.$$eval('#calls .pd-calls b', els => els.map(e => e.textContent));
+ok('today\'s calls come from the rota', names.includes('Ama Mensah'), names.join(','));
+await p.$$eval('#calls .pd-calls li', els => els.find(li => li.textContent.includes('Ama Mensah')).querySelector('button.sm:not(.ghost)').click()); await W();
+s = await S();
+ok('"Reached" records a call and the last contact', s.ministry.followUps.some(f => f.personId === 'ama' && f.kind === 'call' && f.status === 'completed') && s.ministry.people.find(x => x.id === 'ama').lastContact);
+ok('…and ticks telepastoring in today shepherding', await p.$$eval('.tr-list li', els => els.find(li => li.textContent.includes('Telepastor')).classList.contains('done')));
+await p.click('#pvti .card-h button.sm'); await W(200);
+await p.$$eval('.pv-log .jw-kinds button', els => els.find(e => e.textContent === 'Visitation').click()); await W(100);
+await p.click('.pv-log .picker-btn, .pv-log button[aria-haspopup]').catch(() => {});
+await W(200);
+const opt = await p.$$('[role=option]'); if (opt.length) { await opt[1].click(); await W(200); }
+await p.$eval('.pv-log button.primary', el => el.click()); await W();
+s = await S();
+ok('recording a visit counts as Visitation', s.ministry.followUps.some(f => f.kind === 'visit' && f.status === 'completed'));
+ok('…and ticks PVTI for today', await p.$$eval('.tr-list li', els => els.find(li => li.textContent.includes('Pray, visit')).classList.contains('done')));
+await p.type('#ch-today', 'Psalm 23: the Lord is my shepherd. See you Thursday!');
+await p.$$eval('#chat button', els => els.find(e => e.textContent === 'I shared it').click()); await W();
+s = await S();
+ok('the chat message is recorded as shared today', (s.ministry.chatPosts || []).length === 1 && s.ministry.chatPlan[new Date().toLocaleDateString('en-CA')].startsWith('Psalm 23'));
+ok('…and the calendar marks today', await p.$$eval('.pd-days li.today .pd-marks i.ok', els => els.length) === 3);
+const bal = await p.evaluate(() => [...document.querySelectorAll('.pd-grid')].map(g => [...g.children].map(x => Math.round(x.getBoundingClientRect().height)).join('/')));
+ok('every row of panels is balanced', bal.every(r => { const [a, b] = r.split('/'); return a === b; }), bal.join(' '));
+await p.screenshot({ path: 'b7/pm-dash2.png', fullPage: true });
+console.log(errors.length ? errors : 'no page errors'); console.log(`${pass}/${pass + fail} passed`);
+await b.close();
