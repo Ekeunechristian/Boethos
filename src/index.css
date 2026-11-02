@@ -5657,3 +5657,10 @@ a.sv-cell:hover { border-color: #A9B98C; background: #F6F8F0; }
 .folio { flex-wrap: wrap; overflow: visible; row-gap: 4px; }
 .folio a { flex: 1 1 auto; white-space: nowrap; }
 @media (max-width: 760px) { .folio a { flex: 1 1 auto; } }
+
+/* The app's colours are also set on the body, so a browser extension that changes :root colours can't recolour Boēthos */
+body { --accent: #4E6234; --accent-soft: #E3E9D6; --bg: #F1EEE3; --panel: #FFFEF8; --ink: #1D1C17; --ink2: #47453A; --muted: #5A574A; accent-color: #4E6234; }
+/* Browser autofill keeps the app's cream, not the browser's pale blue */
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, textarea:-webkit-autofill, select:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink); -webkit-box-shadow: 0 0 0 1000px var(--panel) inset; box-shadow: 0 0 0 1000px var(--panel) inset; transition: background-color 9999s ease-out 0s;
+}
