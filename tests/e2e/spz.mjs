@@ -24,6 +24,8 @@ await p.evaluate(() => document.fonts.ready);
 await p.screenshot({ path: `${OUT}/w1.png`, fullPage: true });
 ok('first run shows the welcome page with a verse', await p.$eval('.w3-side', el => el.textContent.includes('Psalm 121')).catch(() => false));
 await p.type('.w3-f input', 'Mekom');
+ok('the Bacenta name is asked, not pre-filled', (await p.$$eval('.w3-f input', els => els[2].value)) === '');
+await (await p.$$('.w3-f input'))[2].type('Greater Love Bacenta');
 await p.$eval('.w3-foot button.primary', el => el.click()); await wait();
 await p.screenshot({ path: `${OUT}/w2.png`, fullPage: true });
 ok('second page is your rhythm', (await p.$eval('.w3-main h1', el => el.textContent)).includes('your rhythm'));
