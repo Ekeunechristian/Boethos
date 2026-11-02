@@ -10,7 +10,7 @@ Live: **https://boethos.ecmeserver.uk** · Installable on phone and desktop (PWA
 | --- | --- |
 | **What it does** | Tracks a personal spiritual rhythm (quiet time, prayer, Bible reading, fasting, study) and runs a small congregation: attendance for two weekly meetings, a weekly telepastoring call rota with retries and deadlines, follow-ups, visits, evangelism and a soul list, sermon preparation and a pulpit view, and weekly reviews. |
 | **Stack** | React 18, Vite 6, plain CSS; Supabase (Postgres with row-level security, Auth, Edge Functions, pg_cron); Web Push (VAPID); deployed on Cloudflare Pages. |
-| **Tests** | 39 unit tests (Vitest) on the domain logic, and 12 end-to-end suites (Puppeteer) that drive the real app in Chrome at phone and laptop widths. |
+| **Tests** | 39 unit tests (Vitest) on the domain logic, and 11 end-to-end suites (Puppeteer) that drive the real app in Chrome at phone and laptop widths. |
 
 ## Engineering highlights
 
