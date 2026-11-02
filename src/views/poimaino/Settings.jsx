@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import TimeInput from '../../lib/TimeInput.jsx';
 import { Plus, X } from 'lucide-react';
 import { STAGES_DEFAULT, OUTREACH_DEFAULT, STABLE_CRITERIA, MILESTONES } from '../../data/ministry';
 import { Head, Picker, useToast } from '../../lib/ui.jsx';
@@ -36,8 +37,8 @@ export default function MinistrySettings() {
           <div className="fields">
             <div className="field wide"><label htmlFor="ms-name">Bacenta name</label><input id="ms-name" defaultValue={s.name} onBlur={e => e.target.value.trim() && e.target.value !== s.name && save({ name: e.target.value.trim() }, 'Name saved')} /></div>
             <div className="field wide"><label>Timezone</label><Picker label="Timezone" value={s.timezone} onChange={v => save({ timezone: v })} options={ZONES.map(z => ({ value: z, label: z }))} /></div>
-            <div className="field"><label htmlFor="ms-thu">Thursday Bible study starts</label><input id="ms-thu" type="time" value={s.times.thu} onChange={e => settings({ times: { ...s.times, thu: e.target.value } })} /></div>
-            <div className="field"><label htmlFor="ms-sat">Saturday church starts</label><input id="ms-sat" type="time" value={s.times.sat} onChange={e => settings({ times: { ...s.times, sat: e.target.value } })} /></div>
+            <div className="field"><label htmlFor="ms-thu">Thursday Bible study starts</label><TimeInput id="ms-thu" value={s.times.thu} onChange={e => settings({ times: { ...s.times, thu: e.target.value } })} /></div>
+            <div className="field"><label htmlFor="ms-sat">Saturday church starts</label><TimeInput id="ms-sat" value={s.times.sat} onChange={e => settings({ times: { ...s.times, sat: e.target.value } })} /></div>
             <div className="field"><label htmlFor="ms-due">Report due (hours after start)</label><input id="ms-due" type="number" min="1" value={s.reportDueHours ?? ''} placeholder="Not set" onChange={e => settings({ reportDueHours: e.target.value === '' ? null : Number(e.target.value) })} /></div>
             <div className="field"><label htmlFor="ms-from">Track meetings from</label><input id="ms-from" type="date" value={s.meetingsFrom} onChange={e => settings({ meetingsFrom: e.target.value })} /></div>
             <div className="field"><label>Pre-service calls on</label><Picker label="Call day" value={String(s.preServiceDay)} onChange={v => save({ preServiceDay: Number(v) })} options={DAYS.map((d, i) => ({ value: String(i), label: d }))} /></div>
@@ -104,7 +105,7 @@ export default function MinistrySettings() {
             ))}
             <div className="field"><label>Telepastoring reminders</label><p className="muted small" style={{ margin: 0 }}>{(s.teleTimes || [s.callTime]).filter(Boolean).join(', ') || 'None'} · <a href="#/poimaino/followup/telepastoring">change on the Telepastoring page</a></p></div>
             {[['evangelism', 'Evangelism reminder, every day'], ['chat', 'Bacenta chat reminder, every day'], ['pvti', 'PVTI reminder, every day']].map(([k, lab]) => (
-              <div className="field" key={k}><label htmlFor={`dt-${k}`}>{lab}</label><input id={`dt-${k}`} type="time" value={(s.daily || {})[k] || ''} onChange={e => settings({ daily: { ...(s.daily || {}), [k]: e.target.value } })} /></div>
+              <div className="field" key={k}><label htmlFor={`dt-${k}`}>{lab}</label><TimeInput id={`dt-${k}`} value={(s.daily || {})[k] || ''} onChange={e => settings({ daily: { ...(s.daily || {}), [k]: e.target.value } })} /></div>
             ))}
           </div>
         </section>
@@ -122,8 +123,8 @@ export default function MinistrySettings() {
           <div className="fields">
             {[['attendance', 'Attendance and reports'], ['followups', 'Follow-ups and calls'], ['sermon', 'Thursday sermon'], ['campaigns', 'Campaign actions and reviews']].map(([k, l]) => (
               <div className="field" key={k}><label className="toggle"><input type="checkbox" checked={r.categories[k]} disabled={!r.enabled} onChange={e => save({ reminders: { categories: { [k]: e.target.checked } } })} />{l}</label></div>))}
-            <div className="field"><label htmlFor="ms-qf">Quiet from</label><input id="ms-qf" type="time" value={r.quietFrom} onChange={e => settings({ reminders: { quietFrom: e.target.value } })} /></div>
-            <div className="field"><label htmlFor="ms-qt">Quiet until</label><input id="ms-qt" type="time" value={r.quietTo} onChange={e => settings({ reminders: { quietTo: e.target.value } })} /></div>
+            <div className="field"><label htmlFor="ms-qf">Quiet from</label><TimeInput id="ms-qf" value={r.quietFrom} onChange={e => settings({ reminders: { quietFrom: e.target.value } })} /></div>
+            <div className="field"><label htmlFor="ms-qt">Quiet until</label><TimeInput id="ms-qt" value={r.quietTo} onChange={e => settings({ reminders: { quietTo: e.target.value } })} /></div>
             <div className="field"><label>Delivery</label><Picker label="Delivery" value={r.digest} onChange={v => save({ reminders: { digest: v } })} options={[{ value: 'instant', label: 'As each is due' }, { value: 'morning', label: 'One morning summary' }]} /></div>
             <div className="field"><label htmlFor="ms-bm">Before a meeting (minutes)</label><input id="ms-bm" type="number" min="0" value={r.beforeMinutes} onChange={e => settings({ reminders: { beforeMinutes: Number(e.target.value) || 0 } })} /></div>
             <div className="field"><label htmlFor="ms-am">Attendance reminder after start (minutes)</label><input id="ms-am" type="number" min="0" value={r.afterMinutes} onChange={e => settings({ reminders: { afterMinutes: Number(e.target.value) || 0 } })} /></div>

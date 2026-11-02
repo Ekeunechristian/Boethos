@@ -33,7 +33,28 @@ const TELE = [
   'I will feed my flock, and I will cause them to lie down, saith the Lord GOD. (Ezekiel 34:15)', 'The good shepherd giveth his life for the sheep. (John 10:11)',
   'Exhort one another daily, while it is called To day. (Hebrews 3:13)',
 ];
+// A category ending "~30" is a heads-up 30 minutes before the reminder itself.
+const SOON: Record<string, string> = {
+  quiet: 'your quiet time.', prayer: 'a prayer time.', study: 'your Bible study.', points: 'your prayer points.',
+  prayerlog: 'log today’s prayer.', reading: 'your reading.',
+};
 function text(cats: string[], n: number) {
+  const soon = cats.filter((c) => c.includes('~'));
+  if (soon.length) {
+    const rest = cats.filter((c) => !c.includes('~'));
+    const lead = soon[0].split('~')[1];
+    const base = [...new Set(soon.map((c) => c.split('~')[0]))];
+    let line: string;
+    if (base.includes('tele')) {
+      const v = TELE[Math.floor(Date.now() / 86400000) % TELE.length];
+      line = `Telepastoring in ${lead} minutes. “${v.replace(/ \(.*\)$/, '')}” ${v.match(/\((.*)\)$/)?.[1] ?? ''}`;
+    } else {
+      const mine = base.filter((c) => SOON[c]).map((c) => SOON[c]);
+      const flock = base.filter((c) => !SOON[c]);
+      line = `In ${lead} minutes: ${[...mine, ...(flock.length ? [`${flock.length === 1 ? 'something' : `${flock.length} things`} for Greater Love.`] : [])].join(' ')}`;
+    }
+    return rest.length ? `${line} ${text(rest, rest.length)}` : line;
+  }
   if (cats.includes('tele')) {
     const rest = cats.filter((c) => c !== 'tele');
     const v = TELE[Math.floor(Date.now() / 86400000) % TELE.length];

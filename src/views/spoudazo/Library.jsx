@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import TimeInput from '../../lib/TimeInput.jsx';
 import { Plus, X, Check, ArrowRight, Search, ExternalLink } from 'lucide-react';
 import { MESSAGE_CATS, DHM } from '../../data/spoudazo';
 import { streaks } from '../../store/life';
@@ -103,7 +104,7 @@ function Reading() {
             <h3>Reminder to read</h3>
             <div className="lb-rem">
               <label className="switch"><input type="checkbox" role="switch" checked={!!r.reading} onChange={e => act('GOALS', { data: { reminders: { reading: e.target.checked } } })} /><span className="sw" aria-hidden="true" />Every day at</label>
-              <input type="time" value={g.readingTime || '21:00'} onChange={e => act('GOALS', { data: { readingTime: e.target.value } })} aria-label="Reading reminder time" disabled={!r.reading} />
+              <TimeInput value={g.readingTime || '21:00'} onChange={e => act('GOALS', { data: { readingTime: e.target.value } })} aria-label="Reading reminder time" disabled={!r.reading} />
             </div>
             <p className="muted small" style={{ margin: '6px 0 0' }}>{book ? `“Time to read ${book.title}.” Not sent once you have read today.` : 'Starts when you are reading a book.'}</p>
           </section>

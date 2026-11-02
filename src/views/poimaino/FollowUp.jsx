@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import TimeInput from '../../lib/TimeInput.jsx';
 import { Plus, Phone, MessageCircle, Check, X, Clock, ArrowRight, Copy, Home as HomeIc, HandHeart, Sparkles, CalendarPlus, Church, Circle } from 'lucide-react';
 import { FOLLOW_KINDS, VISIT_PREP, REGISTERED, PVTI, pvciOf } from '../../data/ministry';
 import { addDays, meetingList, typeLabel, weekdayOf, submitted, daysBetween, isFlock, callsToday, prepFor, membershipLabel, teleWeek, teleTimes, teleVerse, telePace, teleDaysFor, areaOf, areaLabel } from '../../store/ministry';
@@ -400,7 +401,7 @@ function Telepastoring() {
           <p className="muted small" style={{ margin: '0 0 10px' }}>Monday to Saturday, while anyone is still to reach, “Time to telepastor” with a verse at each of these times. None on Sunday.</p>
           <div className="tl-times">{times.map(t => <span key={t}>{t}{times.length > 1 && <button type="button" onClick={() => setTimes(times.filter(x => x !== t))} aria-label={`Remove ${t}`}><X size={12} /></button>}</span>)}</div>
           <form className="tl-add" onSubmit={e => { e.preventDefault(); if (time && !times.includes(time)) { setTimes([...times, time]); setTime(''); } }}>
-            <input type="time" value={time} onChange={e => setTime(e.target.value)} aria-label="Add a time" /><button type="submit" className="sm" disabled={!time}><Plus size={14} />Add a time</button>
+            <TimeInput value={time} onChange={e => setTime(e.target.value)} aria-label="Add a time" /><button type="submit" className="sm" disabled={!time}><Plus size={14} />Add a time</button>
           </form>
         </section>
       </aside>

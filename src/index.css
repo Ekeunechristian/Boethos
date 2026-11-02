@@ -5664,3 +5664,43 @@ body { --accent: #4E6234; --accent-soft: #E3E9D6; --bg: #F1EEE3; --panel: #FFFEF
 input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, textarea:-webkit-autofill, select:-webkit-autofill {
   -webkit-text-fill-color: var(--ink); -webkit-box-shadow: 0 0 0 1000px var(--panel) inset; box-shadow: 0 0 0 1000px var(--panel) inset; transition: background-color 9999s ease-out 0s;
 }
+
+/* ── Time picker: a field, and a panel of hours and minutes ── */
+.tpk { position: relative; display: inline-flex; vertical-align: middle; }
+.tpk-field { display: inline-flex; align-items: center; gap: 6px; width: 100%; min-height: 40px; padding: 0 12px; border: 1px solid var(--line2); border-radius: 10px; background: var(--panel); cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease; }
+.tpk-field:hover { border-color: #A9B98C; }
+.tpk.open .tpk-field { border-color: var(--accent); box-shadow: 0 0 0 3px #E3E9D6; }
+.tpk-field input { width: 5.2ch; min-width: 0; min-height: 0 !important; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; outline: none; font: 600 1rem var(--mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; letter-spacing: .02em; color: var(--ink); cursor: pointer; }
+.tpk-field input::placeholder { color: #B7BCAA; }
+.tpk-field svg { flex: none; color: #A9B19A; }
+.tpk.open .tpk-field svg { color: var(--accent); }
+.tpk.disabled { opacity: .5; } .tpk.disabled .tpk-field { cursor: default; }
+.field .tpk, .st-f .tpk { display: flex; } .field .tpk-field { min-height: 44px; }
+/* the round pill used on the rhythm and welcome pages */
+.tpk.time-pill { min-width: 0; min-height: 0; padding: 0; border: 0; background: none; }
+.tpk.time-pill .tpk-field { min-height: 46px; padding: 0 16px; border: 1.5px solid var(--line2); border-radius: 999px; }
+.tpk.time-pill .tpk-field input { font-size: 1.05rem; }
+.tpk.st-time { width: auto !important; min-height: 0; padding: 0; border: 0; }
+.tpk.st-time .tpk-field { min-height: 34px; padding: 0 10px; }
+.tpk.st-time .tpk-field input { font-size: .9rem; }
+/* the panel */
+.tpk-pop { position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 330px; padding: 14px; border-radius: 16px; background: var(--panel); border: 1px solid #E3E6D8; box-shadow: 0 18px 40px rgba(29,28,23,.16), 0 2px 6px rgba(29,28,23,.06); cursor: default; }
+.st-n-when .tpk-pop, .tl-add .tpk-pop { left: auto; right: 0; }
+.tpk-head { display: flex; align-items: baseline; gap: 10px; padding: 0 2px 10px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.tpk-head b { font: 600 1.6rem var(--mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--accent); }
+.tpk-head span { font: italic 400 .9rem var(--serif); color: var(--muted); }
+.tpk-cols { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 12px; }
+.tpk-col small { display: block; margin-bottom: 6px; font: 600 .68rem var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.tpk-hours { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.tpk-mins { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.tpk-hours button, .tpk-mins button { min-height: 32px; padding: 0; border: 0; border-radius: 8px; background: #F4F6EF; font: 500 .86rem var(--mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink2); }
+.tpk-hours button:hover, .tpk-mins button:hover { background: #E3E9D6; color: var(--ink); }
+.tpk-hours button.on, .tpk-mins button.on { background: var(--accent); color: #fff; font-weight: 700; }
+.tpk-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.tpk-foot .grow { flex: 1; }
+.tpk-foot button { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 640px) {
+  .tpk-pop { position: fixed; top: auto; left: 0 !important; right: 0 !important; bottom: 0; width: auto; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); border-radius: 20px 20px 0 0; box-shadow: 0 -12px 40px rgba(29,28,23,.2); }
+  .tpk-hours button, .tpk-mins button { min-height: 42px; font-size: .95rem; }
+}
+.st-rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }

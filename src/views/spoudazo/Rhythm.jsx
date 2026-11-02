@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import TimeInput from '../../lib/TimeInput.jsx';
 import { X, Plus, Minus, Sunrise, BookOpen, HandHeart, AlarmClock, Bell } from 'lucide-react';
 import { useStore } from '../../store/index.jsx';
 import { useToast, Picker } from '../../lib/ui.jsx';
@@ -19,7 +20,7 @@ export function Stepper({ value, onChange, min = 0, max = 999, step = 1, format 
   );
 }
 
-const TimePill = ({ value, onChange, label }) => <input className="time-pill" type="time" value={value || ''} onChange={e => onChange(e.target.value)} aria-label={label} />;
+const TimePill = ({ value, onChange, label }) => <TimeInput className="time-pill" value={value || ''} onChange={e => onChange(e.target.value)} aria-label={label} />;
 
 // Your rhythm: the goals Spoudazō builds each day from. Shared by the first run and Settings.
 export function RhythmFields({ value: g, onChange, topic, onTopic, noReminders }) {

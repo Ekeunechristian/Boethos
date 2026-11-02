@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import TimeInput from '../lib/TimeInput.jsx';
 import { Flame, Snowflake, User, CalendarClock, Smartphone, HardDrive, TriangleAlert, Info, Bell, Briefcase, Plus, X, Download, Upload, Cloud } from 'lucide-react';
 import { useStore } from '../store/index.jsx';
 import { Head, Bar, useToast } from '../lib/ui.jsx';
@@ -142,7 +143,7 @@ function Life() {
           <input className="st-c-name" defaultValue={c.name} onBlur={e => e.target.value.trim() && e.target.value !== c.name && upd(c.id, { name: e.target.value.trim() })} aria-label="Name" />
           <select value={c.kind} onChange={e => upd(c.id, { kind: e.target.value })} aria-label="Kind">{COMMITMENT_KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           {daysEdit(c, d => upd(c.id, d))}
-          <span className="st-c-time"><input type="time" value={c.from || ''} onChange={e => upd(c.id, { from: e.target.value })} aria-label="From" />–<input type="time" value={c.to || ''} onChange={e => upd(c.id, { to: e.target.value })} aria-label="To" /></span>
+          <span className="st-c-time"><TimeInput value={c.from || ''} onChange={e => upd(c.id, { from: e.target.value })} aria-label="From" />–<TimeInput value={c.to || ''} onChange={e => upd(c.id, { to: e.target.value })} aria-label="To" /></span>
           <label className="st-c-until">until<input type="date" value={c.until || ''} onChange={e => upd(c.id, { until: e.target.value })} aria-label="Until" /></label>
           <button type="button" className="iv-x" onClick={() => save(list.filter(x => x.id !== c.id), `${c.name} removed`)} aria-label={`Remove ${c.name}`}><X size={15} /></button>
           {!(c.from && c.to && c.days?.length) && <small className="st-c-hint">Add days and times so reminders can work around it.</small>}
@@ -152,7 +153,7 @@ function Life() {
         <input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Add a commitment: work, a course, piano…" aria-label="New commitment" />
         <select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value })} aria-label="Kind">{COMMITMENT_KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         {daysEdit(f, d => setF({ ...f, ...d }))}
-        <span className="st-c-time"><input type="time" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} aria-label="From" />–<input type="time" value={f.to} onChange={e => setF({ ...f, to: e.target.value })} aria-label="To" /></span>
+        <span className="st-c-time"><TimeInput value={f.from} onChange={e => setF({ ...f, from: e.target.value })} aria-label="From" />–<TimeInput value={f.to} onChange={e => setF({ ...f, to: e.target.value })} aria-label="To" /></span>
         <button type="submit" className="primary sm" disabled={!f.name.trim()}><Plus size={15} />Add</button>
       </form>
     </Section>

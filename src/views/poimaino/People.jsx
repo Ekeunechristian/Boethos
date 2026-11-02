@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import TimeInput from '../../lib/TimeInput.jsx';
 import { Search, Plus, Phone, MessageCircle, CalendarPlus, Home, ArrowRight, Lock, Unlock, ChevronLeft, ChevronRight, GitMerge, Trash2, Info, Sprout, HeartHandshake, Check, Mail, HandHeart } from 'lucide-react';
 import { MEMBERSHIP, CARE_STATUS, FOLLOW_KINDS, REGISTERED } from '../../data/ministry';
 import { LEADERSHIP_STAGES } from '../../data/constants';
@@ -183,7 +184,7 @@ export function FollowSheet({ person, kind = 'call', onClose, initial }) {
           <div className="field"><label htmlFor="fs-due">Due</label><input id="fs-due" type="date" value={f.due} onChange={e => set('due', e.target.value)} /></div>
           <div className="field wide"><label htmlFor="fs-title">{f.kind === 'visit' ? 'Purpose' : 'What for'}</label><input id="fs-title" value={f.title} onChange={e => set('title', e.target.value)} placeholder={f.kind === 'visit' ? 'Get to know the family; pray about the job' : 'Welcome after first visit'} /></div>
           {f.kind === 'visit' && <>
-            <div className="field"><label htmlFor="fs-time">Agreed time</label><input id="fs-time" type="time" value={f.time || ''} onChange={e => set('time', e.target.value)} /></div>
+            <div className="field"><label htmlFor="fs-time">Agreed time</label><TimeInput id="fs-time" value={f.time || ''} onChange={e => set('time', e.target.value)} /></div>
             <div className="field"><label>Agreed place</label><Picker label="Place" value={f.place} onChange={v => set('place', v)} options={['Home', 'Church', 'Café / public place', 'Workplace', 'Phone / video', 'Other agreed place'].map(x => ({ value: x, label: x }))} /></div>
           </>}
           <div className="field"><label>Priority</label><Picker label="Priority" value={f.priority} onChange={v => set('priority', v)} options={[{ value: 'normal', label: 'Normal' }, { value: 'high', label: 'High' }]} /></div>

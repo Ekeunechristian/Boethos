@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import TimeInput from '../lib/TimeInput.jsx';
 import { Bell, BellOff, Sunrise, HandHeart, BookOpen, Flame, ListChecks, Library, Moon, PhoneCall, AlarmClock, CalendarCheck, Church, ClipboardCheck, Users, Mic, Footprints, MessageCircle, NotebookPen, Sparkles, LifeBuoy, Megaphone, Home, Send } from 'lucide-react';
 import { useStore } from '../store/index.jsx';
 import { useToast } from '../lib/ui.jsx';
@@ -61,18 +62,18 @@ export default function NotificationsCard() {
     for (let i = 0; i < on.length; i++) await notify(on[i], { tag: `boethos-test-${i}-${Date.now()}`, url: '/?go#/settings' });
     toast(`${on.length} test notifications sent`);
   };
-  const time = (k, v) => <input type="time" className="st-time" value={v || ''} onChange={e => setLife({ [k]: e.target.value })} aria-label="Time" />;
+  const time = (k, v) => <TimeInput className="st-time" value={v || ''} onChange={e => setLife({ [k]: e.target.value })} aria-label="Time" />;
   const pmWhen = {
     tele: <a href="#/poimaino/followup/telepastoring" className="st-link">{teleTimes(m).join(', ')}</a>,
-    followups: <input type="time" className="st-time" value={r.followupTime || '09:00'} onChange={e => setM({ reminders: { followupTime: e.target.value } })} aria-label="Follow-up time" />,
+    followups: <TimeInput className="st-time" value={r.followupTime || '09:00'} onChange={e => setM({ reminders: { followupTime: e.target.value } })} aria-label="Follow-up time" />,
     meetingSoon: <span className="st-num"><input type="number" min="0" value={r.beforeMinutes} onChange={e => setM({ reminders: { beforeMinutes: Number(e.target.value) || 0 } })} aria-label="Minutes before" />min before</span>,
     attendance: <span className="st-num"><input type="number" min="0" value={r.afterMinutes} onChange={e => setM({ reminders: { afterMinutes: Number(e.target.value) || 0 } })} aria-label="Minutes after" />min after</span>,
-    ...Object.fromEntries([['evangelism', 'evangelism'], ['chat', 'chat'], ['pvti', 'pvti']].map(([id, k]) => [id, <input key={id} type="time" className="st-time" value={(m.settings.daily || {})[k] || ''} onChange={e => setM({ daily: { ...(m.settings.daily || {}), [k]: e.target.value } })} aria-label="Time" />])),
+    ...Object.fromEntries([['evangelism', 'evangelism'], ['chat', 'chat'], ['pvti', 'pvti']].map(([id, k]) => [id, <TimeInput key={id} className="st-time" value={(m.settings.daily || {})[k] || ''} onChange={e => setM({ daily: { ...(m.settings.daily || {}), [k]: e.target.value } })} aria-label="Time" />])),
   };
   const lifeOn = LIFE_TYPES.filter(x => lr[x.id]).length, pmOn = NOTIFY_TYPES.filter(x => types[x.id] !== false).length;
   return (
     <section className="st-card" id="notifications">
-      <header className="st-h"><span className="st-h-ic"><Bell size={20} /></span><div><h2>Notifications</h2><p>Every reminder Boēthos can send, when it comes, and a test for each.</p></div></header>
+      <header className="st-h"><span className="st-h-ic"><Bell size={20} /></span><div><h2>Notifications</h2><p>Every reminder Boēthos can send, when it comes, and a test for each. Timed ones also give you a heads-up beforehand.</p></div></header>
 
       <div className={'st-status ' + (perm === 'granted' ? 'ok' : perm === 'denied' ? 'bad' : 'warn')}>
         {perm === 'granted' ? <Bell size={18} /> : <BellOff size={18} />}
@@ -83,7 +84,8 @@ export default function NotificationsCard() {
       </div>
 
       <div className="st-rules">
-        <div><b>Quiet hours</b><span><input type="time" className="st-time" value={r.quietFrom} onChange={e => setM({ reminders: { quietFrom: e.target.value } })} aria-label="Quiet from" /> to <input type="time" className="st-time" value={r.quietTo} onChange={e => setM({ reminders: { quietTo: e.target.value } })} aria-label="Quiet until" /></span><small>Nothing comes in these hours; it waits until they end.</small></div>
+        <div><b>Quiet hours</b><span><TimeInput className="st-time" value={r.quietFrom} onChange={e => setM({ reminders: { quietFrom: e.target.value } })} aria-label="Quiet from" /> to <TimeInput className="st-time" value={r.quietTo} onChange={e => setM({ reminders: { quietTo: e.target.value } })} aria-label="Quiet until" /></span><small>Nothing comes in these hours; it waits until they end.</small></div>
+        <div><b>Heads-up before</b><span className="st-seg">{[[0, 'Off'], [15, '15 min'], [30, '30 min'], [60, '1 hour']].map(([v, l]) => <button key={v} type="button" className={Number(r.leadMinutes ?? 30) === v ? 'on' : ''} onClick={() => setM({ reminders: { leadMinutes: v } })}>{l}</button>)}</span><small>Every timed reminder comes twice: this long before, and at the time itself.</small></div>
         <div><b>While you’re busy</b><span><Switch on={state.profile.holdWhenBusy !== false} onChange={v => dispatch({ type: 'UPDATE_PROFILE', data: { holdWhenBusy: v } })} label="Hold reminders while busy" /></span><small>Reminders wait until a commitment in <a href="#life" className="st-link" onClick={e => { e.preventDefault(); document.getElementById('life')?.scrollIntoView({ behavior: 'smooth' }); }}>Your life</a> ends.</small></div>
         <div><b>Shepherding delivery</b><span className="st-seg">{[['instant', 'As each is due'], ['morning', 'Morning summary']].map(([v, l]) => <button key={v} type="button" className={r.digest === v ? 'on' : ''} onClick={() => setM({ reminders: { digest: v } })}>{l}</button>)}</span><small>One summary each morning instead of one at a time.</small></div>
       </div>

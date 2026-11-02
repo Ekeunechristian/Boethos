@@ -48,7 +48,7 @@ export function initialMinistry() {
       callTime: '09:00', teleTimes: ['09:00', '13:00', '18:00'],                        // telepastoring: your daily calling time; each person has a call day
       extraTypes: [],                           // additional meeting types you add
       reminders: { enabled: true, quietFrom: '22:00', quietTo: '07:00', digest: 'instant',
-        categories: { attendance: true, followups: true, sermon: true, campaigns: true }, beforeMinutes: 60, afterMinutes: 120, followupTime: '09:00', types: {} },
+        categories: { attendance: true, followups: true, sermon: true, campaigns: true }, beforeMinutes: 60, afterMinutes: 120, followupTime: '09:00', leadMinutes: 30, types: {} },
     },
     people: [], encounters: [], invitations: [], meetings: {}, followUps: [], sermons: [], campaigns: [],
     alerts: {}, weekNotes: {}, deliveries: [], sentReminders: {}, migratedFrom: null,
@@ -795,6 +795,18 @@ export function dueReminders(m, today, nowTime) {
     if (r.beforeMinutes > 0 && now >= start - r.beforeMinutes && now < start) out.push({ key: `mt-soon:${mt.key}`, cat: 'attendance', pri: 2, title: `${typeLabel(m, mt.type)} at ${m.settings.times[mt.type]}`, why: 'Starting soon.', href: `#/poimaino/services/${encodeURIComponent(mt.key)}`, due: today });
   });
   const fuTime = (a) => { const f = a.key.startsWith('fu:') && m.followUps.find(x => x.id === a.recordId); return f && f.due === today ? (f.time || r.followupTime || '') : ''; };
+  // Heads-ups: from leadMinutes before a reminder until its time
+  const lead = Number(r.leadMinutes ?? 30);
+  const soonNow = (t) => lead && t && mins(nowTime) >= mins(t) - lead && mins(nowTime) < mins(t) && mins(t) - lead >= 0;
+  if (lead) {
+    const wd = weekdayOf(today);
+    if (wd !== 0 && callsToday(m, today).some(x => !x.done)) teleTimes(m).forEach(t => { if (soonNow(t)) out.push({ key: `calls-soon:${today}:${t}`, cat: 'followups', pri: 2, tele: true, soon: true, lead, title: `Telepastoring at ${t}`, why: 'Starting soon.', href: '#/poimaino/followup/telepastoring', due: today }); });
+    m.followUps.filter(f => !f.teleRetry && ['planned', 'attempted'].includes(f.status) && f.due === today && !(f.snoozedUntil && f.snoozedUntil > today)).forEach(f => {
+      const t = f.time || r.followupTime; if (soonNow(t)) out.push({ key: `fu-soon:${f.id}`, cat: 'followups', pri: 2, soon: true, lead, title: `${f.kind === 'visit' ? 'Visit' : 'Follow-up'} at ${t}`, why: 'Starting soon.', href: '#/poimaino/followup', due: today, recordId: f.id });
+    });
+    const dt = m.settings.daily || {}, dd = dailyDone(m, today);
+    [['daily-ev-soon', dt.evangelism, dd.evangelise, 'Evangelise'], ['daily-chat-soon', dt.chat, dd.chat, 'Bacenta chat'], ['daily-pvti-soon', dt.pvti, dd.pvti, 'PVTI']].forEach(([k, t, done, l]) => { if (!done && soonNow(t)) out.push({ key: `${k}:${today}`, cat: 'followups', pri: 2, soon: true, lead, title: `${l} at ${t}`, why: 'Starting soon.', href: '#/poimaino', due: today }); });
+  }
   return out.filter(a => r.categories[a.cat] !== false && typeOn(m, notifyType(m, a.key)) && a.pri <= 2 && !m.sentReminders[`${a.key}@${today}`] && !(fuTime(a) && nowTime < fuTime(a)));
 }
 
@@ -808,8 +820,9 @@ export function reminderBody(list) {
   if (tele) {
     const v = teleVerse(tele.key.split(':')[1] || '');
     const rest = list.filter(x => !x.tele).length;
-    return `Time to telepastor. “${v.text}” ${v.ref}${rest ? ` (and ${rest} more ${rest === 1 ? 'thing needs' : 'things need'} you)` : ''}`;
+    return `${tele.soon ? `Telepastoring in ${tele.lead} minutes.` : 'Time to telepastor.'} “${v.text}” ${v.ref}${rest ? ` (and ${rest} more ${rest === 1 ? 'thing needs' : 'things need'} you)` : ''}`;
   }
+  if (list.every(x => x.soon)) return `Greater Love: in ${list[0].lead} minutes, ${n} ${n === 1 ? 'thing needs' : 'things need'} you (${cats.map(c => what[c] || c).join(', ')}).`;
   return `Greater Love: ${n} ${n === 1 ? 'thing needs' : 'things need'} you (${cats.map(c => what[c] || c).join(', ')}).`;
 }
 
@@ -836,8 +849,11 @@ export function reminderSchedule(m, today, busy = []) {
   const inQuiet = (t) => r.quietFrom && r.quietTo && (r.quietFrom > r.quietTo ? (t >= r.quietFrom || t < r.quietTo) : (t >= r.quietFrom && t < r.quietTo));
   const until = addDays(today, 7);
   const out = [];
+  const lead = Number(r.leadMinutes ?? 30);
+  // a reminder at its time, and a heads-up `lead` minutes before (category "~30" tells the sender it is a heads-up)
+  const add2 = (key, soonKey, cat, date, time) => { add(key, cat, date, time); const s = mins(time) - lead; if (lead && s >= 0) add(soonKey, `${cat}~${lead}`, date, hhmm(s)); };
   const add = (key, cat, date, time) => {
-    if (r.categories[cat] === false || !typeOn(m, notifyType(m, key)) || date < today || date > until) return;
+    if (r.categories[cat.split('~')[0]] === false || !typeOn(m, notifyType(m, key)) || date < today || date > until) return;
     let d = date, t = afterBusy(busy, date, time);
     if (inQuiet(t)) { if (r.quietFrom > r.quietTo && t >= r.quietFrom) d = addDays(d, 1); t = r.quietTo; } // moved to the end of quiet hours
     if (m.sentReminders[`${key}@${d}`]) return; // already shown in the app
@@ -848,13 +864,13 @@ export function reminderSchedule(m, today, busy = []) {
     if (r.beforeMinutes > 0) add(`mt-soon:${mt.key}`, 'attendance', mt.date, hhmm(start - r.beforeMinutes));
     add(`mt-submit:${mt.key}`, 'attendance', mt.date, hhmm(start + (Number(r.afterMinutes) || 0)));
   });
-  m.followUps.filter(f => f.status === 'planned' && f.due && !f.teleRetry).forEach(f => add(`fu:${f.id}`, 'followups', f.snoozedUntil && f.snoozedUntil > f.due ? f.snoozedUntil : f.due, f.time || r.followupTime || morning));
+  m.followUps.filter(f => f.status === 'planned' && f.due && !f.teleRetry).forEach(f => add2(`fu:${f.id}`, `fu-soon:${f.id}`, 'followups', f.snoozedUntil && f.snoozedUntil > f.due ? f.snoozedUntil : f.due, f.time || r.followupTime || morning));
   // the daily rhythm at the times you set
   const dt = m.settings.daily || {};
-  for (let d = today; d <= until; d = addDays(d, 1)) [['daily-ev', dt.evangelism], ['daily-chat', dt.chat], ['daily-pvti', dt.pvti]].forEach(([k, t]) => t && add(`${k}:${d}`, 'followups', d, t));
+  for (let d = today; d <= until; d = addDays(d, 1)) [['daily-ev', dt.evangelism], ['daily-chat', dt.chat], ['daily-pvti', dt.pvti]].forEach(([k, t]) => t && add2(`${k}:${d}`, `${k}-soon:${d}`, 'followups', d, t));
   sermonPlan(m, addDays(today, -1)).filter(x => x.status !== 'done' && x.status !== 'waiting').forEach(x => add(`sermon:${x.sermonId}:${x.stage}`, 'sermon', x.date, morning));
   m.campaigns.filter(c => c.status === 'active').forEach(c => (c.activities || []).filter(a => !a.done && a.due).forEach(a => add(`cmp:${c.id}:${a.id}`, 'campaigns', a.due, morning)));
-  for (let d = today; d <= until; d = addDays(d, 1)) if (weekdayOf(d) !== 0 && m.people.some(isTeleSoul)) teleTimes(m).forEach(t => add(`calls:${d}:${t}`, 'tele', d, t));
+  for (let d = today; d <= until; d = addDays(d, 1)) if (weekdayOf(d) !== 0 && m.people.some(isTeleSoul)) teleTimes(m).forEach(t => add2(`calls:${d}:${t}`, `calls-soon:${d}:${t}`, 'tele', d, t));
   if (r.digest === 'morning') {
     // one summary per day instead of one per item
     const days = [...new Set(out.map(x => x.key.split('@')[1]))];
@@ -920,10 +936,10 @@ export const NOTIFY_TYPES = [
   { id: 'care', label: 'Care reviews', desc: 'A care need reaches its review date.' },
   { id: 'campaigns', label: 'Campaign actions', desc: 'A campaign activity is due.' },
 ];
-const PREFIX = [['calls:', 'tele'], ['tele-bham', 'deadline'], ['tele-other', 'deadline'], ['visit-soon:', 'visits'], ['mt-soon:', 'meetingSoon'], ['mt-confirm:', 'attendance'], ['mt-submit:', 'attendance'],
+const PREFIX = [['calls:', 'tele'], ['calls-soon:', 'tele'], ['tele-bham', 'deadline'], ['tele-other', 'deadline'], ['visit-soon:', 'visits'], ['mt-soon:', 'meetingSoon'], ['mt-confirm:', 'attendance'], ['mt-submit:', 'attendance'],
   ['prep:', 'prepare'], ['sermon:', 'sermon'], ['daily-ev', 'evangelism'], ['daily-chat', 'chat'], ['daily-pvti', 'pvti'], ['welcome:', 'welcome'], ['absent:', 'absence'], ['care:', 'care'], ['cmp:', 'campaigns']];
 export function notifyType(m, key) {
-  if (key.startsWith('fu:')) { const f = m.followUps.find(x => x.id === key.slice(3)); return f?.kind === 'visit' ? 'visits' : 'followups'; }
+  if (key.startsWith('fu:') || key.startsWith('fu-soon:')) { const f = m.followUps.find(x => x.id === key.split(':')[1]); return f?.kind === 'visit' ? 'visits' : 'followups'; }
   return PREFIX.find(([p]) => key.startsWith(p))?.[1] || 'followups';
 }
 export const typeOn = (m, id) => m.settings.reminders.types?.[id] !== false;

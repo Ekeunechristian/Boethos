@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import TimeInput from '../lib/TimeInput.jsx';
 import { ArrowRight, ArrowLeft, Check, Minus, Plus } from 'lucide-react';
 import { useStore } from '../store/index.jsx';
 import { todayKey } from '../store/engine';
@@ -78,8 +79,8 @@ export default function Welcome() {
               <div className="w3-fields">
                 <label className="w3-f wide"><span>Its name</span><input value={you.bacenta} onChange={e => set('bacenta', e.target.value)} placeholder="e.g. Greater Love Bacenta" required /></label>
                 <div className="w3-meet">
-                  <div className="w3-mt"><b>Thursday</b><small>Bible study you lead</small><input className="time-pill" type="time" value={you.thu} onChange={e => set('thu', e.target.value)} aria-label="Thursday Bible study starts" /></div>
-                  <div className="w3-mt"><b>Saturday</b><small>Church service</small><input className="time-pill" type="time" value={you.sat} onChange={e => set('sat', e.target.value)} aria-label="Saturday church starts" /></div>
+                  <div className="w3-mt"><b>Thursday</b><small>Bible study you lead</small><TimeInput className="time-pill" value={you.thu} onChange={e => set('thu', e.target.value)} aria-label="Thursday Bible study starts" /></div>
+                  <div className="w3-mt"><b>Saturday</b><small>Church service</small><TimeInput className="time-pill" value={you.sat} onChange={e => set('sat', e.target.value)} aria-label="Saturday church starts" /></div>
                 </div>
                 <div className="w3-stable">
                   <div><b>Stable members today</b><small>Roughly. The vision is 25; this stays “reported” until you review the roster in Poimainō.</small></div>
