@@ -4,6 +4,7 @@ import { useStore } from '../store/index.jsx';
 import { href } from '../lib/router';
 import { Bar } from '../lib/ui.jsx';
 import { PLACE_SETS, pageHref, placeCounts } from '../lib/places';
+import { CloudDot } from './CloudSync.jsx';
 
 const iso = (d) => d.toISOString().slice(0, 10);
 
@@ -145,7 +146,7 @@ export function AvatarButton({ on }) {
   return (
     <a className={'avatar-btn' + (on ? ' on' : '')} href={href('settings')}
       title={`${state.name || 'You'}: your account and settings`} aria-label="Account and settings">
-      <span className="avatar">{initials}</span>
+      <span className="avatar">{initials}<CloudDot /></span>
       <span className="av-who"><b>{(state.name || 'You').trim().split(/\s+/)[0]}</b></span>
     </a>
   );

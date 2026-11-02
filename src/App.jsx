@@ -27,6 +27,7 @@ import CommandPalette from './components/CommandPalette.jsx';
 import { FocusChip } from './components/Focus.jsx';
 import { MainNav, AvatarButton, SearchButton, HelpButton } from './components/Nav.jsx';
 import Footer from './components/Footer.jsx';
+import { PhoneNav, ReloadButton, ThemeToggle } from './components/Phone.jsx';
 import CloudSync, { CloudStatus } from './components/CloudSync.jsx';
 
 const HELP = {
@@ -140,26 +141,19 @@ function Shell() {
         <FocusChip />
         <div className="hdr-tools">
           <SearchButton onClick={() => setPalette(true)} />
-          <CloudStatus />
+          <ThemeToggle />
+          <ReloadButton />
           <HelpButton onClick={() => setHelp(true)} />
           <AvatarButton on={page === 'settings'} />
         </div>
       </header>
 
-      <main className={'sec-' + w.section}>
+      <main className={'sec-' + w.section + ' place-' + w.place}>
         <ViewBoundary key={page + parts.join('/')}>{view}</ViewBoundary>
       </main>
       <Footer page={w.place} sub={w.sub} section={w.section} />
 
-      {inSection && (
-        <nav className={'tabs n' + (places.length + 1)} aria-label={sec.label}>
-          <a href="#/home" className="tab-home" aria-label="Boēthos home"><Mark size={22} /><span>Home</span></a>
-          {places.map(p => {
-            const Icon = p.icon;
-            return <a key={p.id} href={p.base} className={w.place === p.id ? 'on' : ''}><Icon size={21} strokeWidth={1.75} />{p.id === 'poimaino' ? 'Dashboard' : p.label}</a>;
-          })}
-        </nav>
-      )}
+      <PhoneNav section={w.section} place={w.place} onSearch={() => setPalette(true)} />
 
       <Engine />
       <CloudSync />

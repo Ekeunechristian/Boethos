@@ -1,0 +1,33 @@
+// Screenshots of the main pages, for looking at by eye. Usage: node tests/e2e/shoot.mjs.txt <dark|light> <width> [pages...]
+import puppeteer from 'puppeteer-core';
+const [mode = 'dark', width = '1366', ...only] = process.argv.slice(2);
+const w = Number(width);
+const b = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
+const p = await b.newPage(); await p.setViewport({ width: w, height: w < 500 ? 844 : w < 900 ? 1180 : 900, isMobile: w < 900, hasTouch: w < 900 });
+const errors = []; p.on('pageerror', e => errors.push(e.message));
+await p.goto('http://localhost:4319/', { waitUntil: 'networkidle0' });
+await p.evaluate(async (mode) => {
+  const M = await import('/src/store/ministry.js'); const L = await import('/src/store/life.js');
+  const today = new Date().toLocaleDateString('en-CA'); const back = (n) => M.addDays(today, -n);
+  let m = M.initialMinistry(); m.settings.meetingsFrom = back(40); m.settings.times = { thu: '19:00', sat: '10:00' };
+  const R = (a, d = today) => { m = M.ministryReducer(m, a, d); };
+  [['ama', 'Ama Mensah', 'member', 'bham'], ['kwame', 'Kwame Boateng', 'stable', 'bham'], ['esi', 'Esi Owusu', 'visitor', 'bham'], ['sarah', 'Sarah Lin', 'member', 'bham'], ['ben', 'Ben Carter', 'contact', 'uk'], ['tom', 'Tom Ndi', 'prayer', 'abroad']]
+    .forEach(([id, name, membership, area]) => R({ type: 'M_PERSON_ADD', data: { id, name, membership, area, country: area === 'abroad' ? 'Cameroon' : '', phone: '07700900111' } }, back(30)));
+  const sats = M.meetingList(m, today, 6).filter(x => x.type === 'sat' && x.date < today).slice(-3);
+  sats.forEach(mt => { ['ama', 'kwame', 'sarah'].forEach(id => R({ type: 'M_ATTEND', key: mt.key, personId: id, value: 'present' }, mt.date)); R({ type: 'M_SUBMIT', key: mt.key }, mt.date); });
+  R({ type: 'M_FOLLOW_ADD', data: { personId: 'sarah', kind: 'call', title: 'Ask about her exams', due: today, time: '15:00' } });
+  R({ type: 'M_FOLLOW_ADD', data: { personId: 'esi', kind: 'prayer', title: 'Pray for her job interview', due: today } });
+  R({ type: 'M_TELE', personId: 'ama', way: 'call', responded: true });
+  const l = L.initialLife(); l.setupDone = true;
+  localStorage.clear(); localStorage.setItem('boethos_theme', mode);
+  localStorage.setItem('shepherd_os_v1', JSON.stringify({ onboardingDone: true, name: 'Emmanuel', startDate: back(20), ministry: m, life: l, prayerSessions: [], events: [], scriptureMemory: [] })); sessionStorage.setItem('boethos_session', '1');
+}, mode);
+await p.reload({ waitUntil: 'networkidle0' });
+const pages = [['home', '#/home'], ['today', '#/today'], ['prayer', '#/prayer'], ['word', '#/word'], ['dash', '#/poimaino'], ['people', '#/poimaino/people'], ['person', '#/poimaino/people/sarah'], ['services', '#/poimaino/services'], ['queue', '#/poimaino/followup'], ['tele', '#/poimaino/followup/telepastoring'], ['souls', '#/poimaino/evangelism/souls'], ['sermons', '#/poimaino/sermons'], ['campaigns', '#/poimaino/campaigns'], ['settings', '#/settings']]
+  .filter(([n]) => !only.length || only.includes(n));
+for (const [n, h] of pages) {
+  await p.goto('http://localhost:4319/' + h, { waitUntil: 'networkidle0' }); await new Promise(r => setTimeout(r, 700));
+  await p.screenshot({ path: `shots/${mode}-${w}-${n}.png`, fullPage: process.env.FULL === '1' });
+}
+console.log(errors.length ? errors : 'no page errors');
+await b.close();

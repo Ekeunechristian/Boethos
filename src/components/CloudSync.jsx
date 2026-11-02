@@ -37,7 +37,7 @@ export default function CloudSync() {
       const r = await push(state);
       if (r === 'conflict') { setRemote(await fetchRemote()); return; }
       const sched = [...reminderSchedule(state.ministry, localDay(state.ministry.settings.timezone), state.profile?.holdWhenBusy === false ? [] : commitmentsOf(state.profile)), ...lifeSchedule(state, localDay(state.ministry.settings.timezone))];
-      syncSchedule(sched).catch(() => { /* push not set up; sync itself succeeded */ });
+      syncSchedule(state.ministry.settings.reminders.hideDetails ? sched.map(({ body, ...x }) => x) : sched).catch(() => { /* push not set up; sync itself succeeded */ });
     } catch (e) {
       setCloud({ status: navigator.onLine ? 'error' : 'offline', lastError: String(e.message || e) });
     }
@@ -97,6 +97,15 @@ export default function CloudSync() {
 
 // The small cloud in the header: only shown once you connect a project.
 const LABEL = { synced: 'Saved to the cloud', saving: 'Saving…', pending: 'Changes not yet saved to the cloud', offline: 'Offline: changes will save when you reconnect', error: 'Couldn’t save to the cloud', conflict: 'Choose which copy to keep', off: 'Cloud sync off' };
+// A small dot on your initials: green saved, gold waiting, grey offline. Details are in Settings.
+export function CloudDot() {
+  const c = useCloud();
+  if (!isSignedIn(c)) return null;
+  const s = c.status || 'pending';
+  const when = c.lastSyncedAt ? ` (last ${new Date(c.lastSyncedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })})` : '';
+  return <i className={'cloud-dot ' + s} title={LABEL[s] + when} aria-label={LABEL[s] + when} />;
+}
+
 export function CloudStatus() {
   const c = useCloud();
   if (!isSignedIn(c)) return null;

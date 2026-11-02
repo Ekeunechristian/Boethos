@@ -228,9 +228,10 @@ export default function Campaigns({ sub }) {
   const active = m.campaigns.filter(c => c.status === 'active').length;
   return (
     <>
-      <Head eyebrow="Poimainō" step={`${active} active`} title="Campaigns" sub="Purposeful, organised, sustained activity (D4), with the essential activities running together continuously (D5).">
+      <Head back={{ href: '#/poimaino', label: 'Dashboard' }} eyebrow="Poimainō" step={`${active} active`} title="Campaigns" sub="Purposeful, organised, sustained activity (D4), with the essential activities running together continuously (D5).">
         <TitleBlock items={[['Established', new Set(m.campaigns.filter(c => c.n && !['archived', 'cancelled'].includes(c.status)).map(c => c.n)).size + ' / 22'], ['Active', active]]} />
       </Head>
+      <div style={{ marginBottom: 12 }}><Seg value="campaigns" onChange={(v) => (v === 'campaigns' ? null : go('poimaino', ...(v ? [v] : [])))} options={[['', 'Action centre'], ['vision', 'Vision 25'], ['week', 'Weekly review'], ['campaigns', 'Campaigns']]} /></div>
       <div style={{ marginBottom: 22 }}><Seg value={t} onChange={(v) => go('poimaino', 'campaigns', ...(v ? [v] : []))} options={TABS} /></div>
       {t === 'startup' ? <Startup /> : <Strategy />}
     </>

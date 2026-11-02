@@ -33,7 +33,7 @@ ok('every notification type is listed (7 walk with God + 15 shepherding)', rows 
 await p.$$eval('#notifications .st-n', els => els.forEach(li => li.querySelector('.st-test').click())); await W(1500);
 const notes = await p.evaluate(() => window.__notes);
 ok('each Test button sends a notification (plus any real reminder due now)', notes.length >= 22, String(notes.length));
-ok('test notifications carry no names', notes.every(n => !/Mekom|Ama|Grace/.test(n)));
+ok('each test says exactly what to do, with a KJV verse', notes.filter(n => /“.+” [1-3]? ?[A-Z][a-z]+ \d+:\d+/.test(n)).length >= 22, notes.slice(0, 2).join(' | '));
 await p.evaluate(() => { window.__notes = []; });
 await p.$$eval('#notifications .st-n', els => { const r = els.find(li => li.textContent.includes('Bacenta chat')); r.querySelector('.st-sw input').click(); }); await W(300);
 ok('switching one type off saves', (await st()).ministry.settings.reminders.types.chat === false);

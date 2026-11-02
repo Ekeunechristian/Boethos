@@ -46,7 +46,9 @@ export default function Engine() {
       const today = todayKey();
       const list = lifeReminders(state, today, new Date().toTimeString().slice(0, 5));
       if (!list.length) return;
-      notify(list.map(x => x.text).join(' '), { tag: 'boethos-spoudazo', url: '/?go#/today' });
+      // one notification each, saying exactly what (or one plain line if you hide details on the lock screen)
+      if (state.ministry.settings.reminders.hideDetails) notify(list.length === 1 ? 'Time for your walk with God.' : `${list.length} things in your walk with God.`, { tag: 'boethos-spoudazo', url: '/?go#/today' });
+      else list.slice(0, 4).forEach(x => notify(x.text, { tag: `boethos-${x.key}`, url: '/?go#/today' }));
       list.forEach(x => dispatch({ type: 'L_SENT', key: `${x.key}@${today}` }));
     };
     check();
@@ -71,7 +73,12 @@ export default function Engine() {
         list = list.length ? [...list, { key: 'digest' }] : [];
       }
       if (!list.length) return;
-      notify(reminderBody(list.filter(x => x.cat)), { tag: 'boethos-poimaino', url: '/?go#/poimaino' });
+      const items = list.filter(x => x.cat);
+      if (r.hideDetails || r.digest === 'morning') notify(reminderBody(items), { tag: 'boethos-poimaino', url: '/?go#/poimaino' });
+      else {
+        items.slice(0, 4).forEach(x => notify(x.body || reminderBody([x]), { tag: `boethos-${x.key}`, url: `/?go${x.href || '#/poimaino'}` }));
+        if (items.length > 4) notify(`And ${items.length - 4} more things at ${m.settings.name || 'Greater Love'} need you.`, { tag: 'boethos-more', url: '/?go#/poimaino' });
+      }
       list.forEach(x => dispatch({ type: 'M_REMINDER_SENT', key: `${x.key}@${today}` }));
     };
     check();

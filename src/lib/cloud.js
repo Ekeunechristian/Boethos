@@ -126,7 +126,7 @@ export async function syncSchedule(list) {
   const c = await fresh();
   if (!c.pushEndpoint) return;
   await call(c, `/rest/v1/reminder_queue?user_id=eq.${c.session.userId}&sent_at=is.null`, { method: 'DELETE' });
-  if (list.length) await call(c, '/rest/v1/reminder_queue?on_conflict=user_id,key', { method: 'POST', body: list.map(x => ({ user_id: c.session.userId, key: x.key, category: x.cat, send_at: x.sendAt })), prefer: 'resolution=ignore-duplicates,return=minimal' });
+  if (list.length) await call(c, '/rest/v1/reminder_queue?on_conflict=user_id,key', { method: 'POST', body: list.map(x => ({ user_id: c.session.userId, key: x.key, category: x.cat, send_at: x.sendAt, body: x.body || null })), prefer: 'resolution=ignore-duplicates,return=minimal' });
 }
 
 // Ask the server to send one test push to your devices; you then confirm whether it arrived.

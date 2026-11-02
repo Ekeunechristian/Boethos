@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Fold } from '../components/Phone.jsx';
 import { LayoutDashboard, Activity as Activity_, Award, NotebookPen, BookText, HeartPulse, Sun, ArrowRight, Flame, Snowflake, Check, ChevronRight, Sunrise, HandHeart, BookOpen, GraduationCap, Library, BookMarked, Headphones, Leaf, Moon,
-  Church, PhoneCall, Mic, Flag, Users, CalendarDays } from 'lucide-react';
+  Church, PhoneCall, Mic, Flag, Users, CalendarDays , ChevronDown } from 'lucide-react';
 import { useStore } from '../store/index.jsx';
 import { todayKey, shiftDay, TITLES } from '../store/engine';
 import { lifeToday, topicOf } from '../store/life';
@@ -549,7 +550,17 @@ function Folio({ tab }) {
     reviews: reviewDue ? 'due' : null,
     health: sel.warnings.length ? String(sel.warnings.length) : null,
   };
+  const [open, setOpen] = useState(false);
+  const cur = TABS.find(([id]) => id === tab) || TABS[0];
+  const CurIc = FOLIO_ICON[cur[0]];
   return (
+    <>
+    <div className="folio-phone">
+      <button type="button" className="folio-btn" onClick={() => setOpen(!open)} aria-expanded={open}><CurIc size={18} />{cur[1]}<ChevronDown size={18} className="folio-chev" /></button>
+      {open && <div className="folio-list" role="menu">{TABS.map(([id, label]) => { const I = FOLIO_ICON[id]; return (
+        <a key={id || 'overview'} role="menuitem" href={id ? `#/home/${id}` : '#/home'} className={tab === id ? 'on' : ''} onClick={() => setOpen(false)}><I size={18} />{label}{note[id] && <span className={'fo-n' + (note[id] === 'due' ? ' due' : '')}>{note[id]}</span>}</a>
+      ); })}</div>}
+    </div>
     <nav className="folio" aria-label="Boēthos">
       {TABS.map(([id, label]) => (
         <a key={id || 'overview'} href={id ? `#/home/${id}` : '#/home'} className={tab === id ? 'on' : ''} aria-current={tab === id ? 'page' : undefined}>
@@ -557,6 +568,7 @@ function Folio({ tab }) {
         </a>
       ))}
     </nav>
+    </>
   );
 }
 
@@ -576,8 +588,8 @@ export default function Home({ tab = '' }) {
       {t === '' && <>
         <div className="sec-cards2"><SectionCard id="spoudazo" /><SectionCard id="poimaino" /></div>
         <TodayBoth />
-        <WeekWithGod />
-        <div className="home2-pair"><StreakCard /><BacentaWeek /></div>
+        <Fold title="Your week with God" hint="Each discipline, day by day"><WeekWithGod /></Fold>
+        <Fold title="Streak and the Bacenta’s week" hint="Days in a row, and this week at the Bacenta"><div className="home2-pair"><StreakCard /><BacentaWeek /></div></Fold>
       </>}
       {t === 'activity' && <Activity />}
       {t === 'calendar' && <Month />}

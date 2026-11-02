@@ -9,6 +9,7 @@ import CloudCard from './CloudCard.jsx';
 import NotificationsCard from './SettingsNotify.jsx';
 import { stripRestricted, keepLocalRestricted } from '../lib/privacy';
 import { COMMITMENT_KINDS, commitmentsOf, weeklyHours, busyAt } from '../lib/busy';
+import { getTheme, setTheme } from '../lib/theme';
 
 const STORAGE_KEY = 'shepherd_os_v1';
 const LAST_BACKUP = 'stillwaters_last_backup';
@@ -79,6 +80,7 @@ function You() {
   const toast = useToast();
   const p = state.profile;
   const saved = (f) => (v) => { f(v); toast('Saved'); };
+  const [theme, setThemeState] = useState(getTheme());
   const initials = (state.name || 'You').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
   const days = state.startDate ? Math.max(1, Math.floor((Date.now() - new Date(state.startDate + 'T12:00').getTime()) / 86400000) + 1) : 1;
   return (
@@ -105,6 +107,8 @@ function You() {
       <div className="st-pair">
         <div className="st-choice"><b>Your Sabbath</b><small>A full day of rest each week. Today shows only your soul’s rhythm that day.</small>
           <span className="st-seg">{DAY_ORDER.map(i => <button key={i} type="button" className={(p.sabbathDay ?? 1) === i ? 'on' : ''} onClick={() => { updateProfile({ sabbathDay: i }); toast(`Sabbath: ${DAYS[i]}`); }}>{DAYS[i]}</button>)}</span></div>
+        <div className="st-choice"><b>Appearance</b><small>Light, dark, or the same as this device. Each device keeps its own choice.</small>
+          <span className="st-seg">{[['light', 'Light'], ['dark', 'Dark'], ['system', 'Match device']].map(([v, l]) => <button key={v} type="button" className={theme === v ? 'on' : ''} onClick={() => { setTheme(v); setThemeState(v); }}>{l}</button>)}</span></div>
         <div className="st-choice"><b>Daily goal</b><small>{sel.xpToday} of {state.dailyXpGoal} XP today. Any day with XP keeps your streak.</small>
           <span className="st-seg">{[30, 50, 80, 120].map(n => <button key={n} type="button" className={state.dailyXpGoal === n ? 'on' : ''} onClick={() => { setXpGoal(n); toast(`Daily goal: ${n} XP`); }}>{n} XP</button>)}</span></div>
       </div>

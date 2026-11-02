@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run tests/unit",
     "test:e2e": "node tests/e2e/run.mjs",
-    "test:all": "vitest run tests/unit && node tests/e2e/run.mjs"
+    "test:all": "vitest run tests/unit && node tests/e2e/run.mjs",
+    "predev": "node tools/dark.mjs",
+    "prebuild": "node tools/dark.mjs"
   },
   "dependencies": {
     "@reactflow/core": "^11.11.4",

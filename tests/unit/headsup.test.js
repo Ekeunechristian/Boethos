@@ -17,8 +17,10 @@ describe('A heads-up before every timed reminder, then the reminder at its time'
     const s = life();
     const at = (t) => L.lifeReminders(s, MON, t).filter(x => x.cat === 'quiet');
     expect(at('04:20')).toHaveLength(0);
-    expect(at('04:30')[0]).toEqual(expect.objectContaining({ key: 'quiet-soon', soon: true, text: 'In 30 minutes: your quiet time.' }));
-    expect(at('05:00')[0]).toEqual(expect.objectContaining({ key: 'quiet', text: 'Time for your quiet time.' }));
+    expect(at('04:30')[0]).toEqual(expect.objectContaining({ key: 'quiet-soon', soon: true }));
+    expect(at('04:30')[0].text).toMatch(/^In 30 minutes: quiet time \(05:00\)\. Today’s reading: Genesis 1–3\. “.+” (Mark|Psalm) [\d:]+$/);
+    expect(at('05:00')[0].key).toBe('quiet');
+    expect(at('05:00')[0].text).toMatch(/^Quiet time \(05:00\)\. Today’s reading: Genesis 1–3\. “/);
   });
 
   it('the heads-up can be 15 minutes, or switched off', () => {
@@ -56,6 +58,40 @@ describe('A heads-up before every timed reminder, then the reminder at its time'
     let m = on(ministry([{ id: 'a', name: 'Ama', membership: 'member' }]));
     m = run(m, { type: 'M_SETTINGS', data: { daily: { evangelism: '16:00' } } });
     expect(M.dueReminders(m, MON, '15:45').some(a => a.key.startsWith('daily-ev-soon:'))).toBe(true);
+  });
+});
+
+describe('Notifications say exactly what to do, with a verse that fits', () => {
+  it('a follow-up names the person and the task', () => {
+    let m = on(ministry([{ id: 'a', name: 'Sarah Lin', membership: 'member' }]));
+    m = run(m, { type: 'M_FOLLOW_ADD', data: { personId: 'a', kind: 'call', title: 'Ask how her exams went', due: MON, time: '15:00' } });
+    const a = M.dueReminders(m, MON, '15:05').find(x => x.key.startsWith('fu:'));
+    expect(a.body).toMatch(/^Call Sarah: Ask how her exams went at 15:00\. “/);
+  });
+  it('a prayer follow-up says who to pray for', () => {
+    let m = on(ministry([{ id: 'a', name: 'Sarah Lin', membership: 'member' }]));
+    m = run(m, { type: 'M_FOLLOW_ADD', data: { personId: 'a', kind: 'prayer', title: 'Her job interview', due: MON } });
+    expect(M.dueReminders(m, MON, '09:30').find(x => x.key.startsWith('fu:')).body).toMatch(/^Pray for Sarah: Her job interview\./);
+  });
+  it('telepastoring names who is still to reach', () => {
+    let m = on(ministry([{ id: 'a', name: 'Sarah Lin', membership: 'member' }, { id: 'b', name: 'Ama Mensah', membership: 'member' }]));
+    m = { ...m, people: m.people.map(p => ({ ...p, callDay: 1 })) };
+    expect(M.dueReminders(m, MON, '13:05').find(x => x.tele).body).toMatch(/^Telepastor now: (Sarah and Ama|Ama and Sarah) still to reach today\. “/);
+  });
+  it('prayer reminders carry a prayer verse, and the verse changes from one reminder to the next', () => {
+    const l = L.initialLife(); l.setupDone = true;
+    const s = { life: l, prayerRequests: [], prayerSessions: [], events: [], ministry: M.initialMinistry(), profile: {} };
+    const texts = l.goals.prayerTimes.map(t => L.lifeReminders(s, MON, t).find(x => x.key === `prayer-${t}`).text);
+    texts.forEach(t => expect(t).toMatch(/(Luke 18:1|1 Thessalonians 5:17|Jeremiah 33:3|Matthew 26:41|Philippians 4:6)$/));
+    const verses = new Set(['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06'].flatMap(d => l.goals.prayerTimes.map(t => L.lifeReminders(s, d, t).find(x => x.key === `prayer-${t}`).text.split('“')[1])));
+    expect(verses.size).toBeGreaterThan(1);
+  });
+  it('the push queue carries the words, unless you hide details', () => {
+    let m = on(ministry([{ id: 'a', name: 'Sarah Lin', membership: 'member' }]));
+    m = run(m, { type: 'M_FOLLOW_ADD', data: { personId: 'a', kind: 'visit', title: 'Pray with the family', due: MON, time: '18:00' } });
+    expect(M.reminderSchedule(m, MON).find(x => x.key.startsWith('fu:')).body).toMatch(/^Visit Sarah: Pray with the family at 18:00\./);
+    m = run(m, { type: 'M_SETTINGS', data: { reminders: { hideDetails: true } } });
+    expect(M.reminderSchedule(m, MON).find(x => x.key.startsWith('fu:')).body).toBeUndefined();
   });
 });
 

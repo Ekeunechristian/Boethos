@@ -137,8 +137,10 @@ const results = await p.evaluate(async () => {
   check('13c. A reminder already sent today is not sent again', M.dueReminders(m, T, '09:05').filter(x => x.cat === 'followups').length === 0);
   const body = M.reminderBody(due);
   check('13d. Notification text is generic (no names or titles)', !body.includes('Grace') && !body.includes('mother') && (body.startsWith('Greater Love:') || body.startsWith('Time to telepastor.')), body);
-  const sched = M.reminderSchedule({ ...base(), people: m.people, followUps: m.followUps.map(f => ({ ...f, status: 'planned', due: '2026-11-06' })) }, T);
-  check('13e. Push schedule holds only opaque keys, a category and a time', sched.length > 0 && sched.every(x => Object.keys(x).sort().join() === 'cat,key,sendAt' && !JSON.stringify(x).includes('Grace')), JSON.stringify(sched[0]));
+  const hidden = { ...base(), people: m.people, followUps: m.followUps.map(f => ({ ...f, status: 'planned', due: '2026-11-06' })) };
+  hidden.settings = { ...hidden.settings, reminders: { ...hidden.settings.reminders, hideDetails: true } };
+  const sched = M.reminderSchedule(hidden, T);
+  check('13e. With details hidden, the push schedule holds only opaque keys, a category and a time', sched.length > 0 && sched.every(x => Object.keys(x).sort().join() === 'cat,key,sendAt' && !JSON.stringify(x).includes('Grace')), JSON.stringify(sched[0]));
   const ms = base(); ms.settings.times.thu = '19:00'; ms.settings.reminders.quietFrom = '22:00'; ms.settings.reminders.quietTo = '07:00';
   const sch2 = M.reminderSchedule(ms, T).filter(x => x.key.startsWith('mt-soon:thu'));
   check('13f. "Starting soon" is 18:00 London time (UTC in winter)', sch2[0]?.sendAt === `${T}T18:00:00.000Z`, sch2[0]?.sendAt);

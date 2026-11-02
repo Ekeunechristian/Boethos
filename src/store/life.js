@@ -4,6 +4,7 @@
 // stay where they always were in the root state.
 import { DEFAULT_GOALS, STUDY_TOPICS, BIBLE } from '../data/spoudazo';
 import { commitmentsOf, afterBusy, busyAt } from '../lib/busy';
+import { remindVerse } from './remindVerses';
 import { addDays, weekdayOf, mondayOf, zonedToUtc } from './ministry';
 
 const uid = (p) => `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -259,18 +260,57 @@ export function lifeReminders(state, today, nowTime) {
   // the heads-up: from `lead` minutes before until the time itself (not if that moment falls in a commitment)
   const lead = Number(state.ministry?.settings?.reminders?.leadMinutes ?? 30);
   const soon = (t0) => { if (!lead || !t0) return false; const t = mins(afterBusy(busy, today, t0)), s = t - lead; return s >= 0 && !busyAt(busy, today, hhmm(s)) && mins(nowTime) >= s && mins(nowTime) < t; };
-  const both = (key, cat, t, text, soonText) => { if (due(t)) out.push({ key, cat, text }); else if (soon(t)) out.push({ key: `${key}-soon`, cat, soon: true, text: `In ${lead} minutes: ${soonText}` }); };
-  if (r.quiet && !done('quiet')) both('quiet', 'quiet', g.quietTime, 'Time for your quiet time.', 'your quiet time.');
-  if (r.prayer) (g.prayerTimes || []).forEach(t => { if (!l.prayerTimes[today]?.[t]) both(`prayer-${t}`, 'prayer', t, `Prayer time (${t}).`, `prayer (${t}).`); });
-  if (r.study && l.study.current && !done('study')) both('study', 'study', g.studyTime, 'Time for your Bible study.', 'your Bible study.');
-  if (r.fasting && isFastDay(l, today) && due(g.wake || '06:00')) out.push({ key: 'fast', cat: 'fasting', text: 'Today is a fast day.' });
-  if (r.fasting && isFastDay(l, addDays(today, 1)) && due('20:00')) out.push({ key: 'fasteve', cat: 'fasteve', text: 'Tomorrow is a fast day.' });
+  const words = lifeWords(state, today, lead);
+  const kindOf = (key) => (key.startsWith('prayer-') ? 'prayer' : key);
+  const both = (key, cat, t) => {
+    const k = kindOf(key);
+    if (due(t)) out.push({ key, cat, text: words(k, key, today, false, t) });
+    else if (soon(t)) out.push({ key: `${key}-soon`, cat, soon: true, text: words(k, key, today, true, t) });
+  };
+  if (r.quiet && !done('quiet')) both('quiet', 'quiet', g.quietTime);
+  if (r.prayer) (g.prayerTimes || []).forEach(t => { if (!l.prayerTimes[today]?.[t]) both(`prayer-${t}`, 'prayer', t); });
+  if (r.study && l.study.current && !done('study')) both('study', 'study', g.studyTime);
+  if (r.fasting && isFastDay(l, today) && due(g.wake || '06:00')) out.push({ key: 'fast', cat: 'fasting', text: words('fast', 'fast', today, false) });
+  if (r.fasting && isFastDay(l, addDays(today, 1)) && due('20:00')) out.push({ key: 'fasteve', cat: 'fasteve', text: words('fasteve', 'fasteve', today, false) });
   const points = state.prayerRequests.filter(x => !x.answered).length;
-  if (r.points && points) both('points', 'points', g.pointsTime || '12:00', `${points} prayer ${points === 1 ? 'point' : 'points'} waiting for you to pray through.`, 'your prayer points.');
+  if (r.points && points) both('points', 'points', g.pointsTime || '12:00');
   const book = l.books.find(b => b.status === 'reading' && b.for !== 'members');
-  if (r.reading && book && !done('reading')) both('reading', 'reading', g.readingTime || '21:00', `Time to read ${book.title}.`, `reading ${book.title}.`);
-  if (r.prayerLog && !done('prayer')) both('prayerlog', 'prayerlog', g.prayerLogTime || '20:00', 'Log today’s prayer before you sleep.', 'log today’s prayer.');
+  if (r.reading && book && !done('reading')) both('reading', 'reading', g.readingTime || '21:00');
+  if (r.prayerLog && !done('prayer')) both('prayerlog', 'prayerlog', g.prayerLogTime || '20:00');
   return out.filter(x => !l.sent[`${x.key}@${today}`]);
+}
+
+// What each Spoudazō reminder says: the real thing, by name, with a verse that fits (changing each time)
+export function lifeWords(state, today, lead = 30) {
+  const l = state.life, g = l.goals;
+  const portion = planPortion(l, g.chaptersPerDay || 3).map(x => `${x.book} ${x.from}${x.to > x.from ? `–${x.to}` : ''}`).join(', ');
+  const topic = l.study.current && allTopics(l).find(t => t.id === l.study.current)?.title;
+  const book = l.books.find(b => b.status === 'reading' && b.for !== 'members');
+  const open = state.prayerRequests.filter(x => !x.answered);
+  const pts = open.slice(0, 2).map(x => x.person ? `${x.person}: ${x.request}` : x.request).join('; ');
+  const now = {
+    quiet: `Quiet time (${g.quietTime}). Today’s reading: ${portion}.`,
+    prayer: (t) => `Prayer time (${t}). Your goal today: ${Math.round((g.prayerMinutes || 180) / 60 * 10) / 10} hours.`,
+    study: topic ? `Bible study: ${topic}.` : 'Bible study: choose a topic to focus on.',
+    reading: book ? `Read ${book.title}${book.author ? ` by ${book.author}` : ''} (${g.readingMinutes || 20} min).` : 'Time to read.',
+    points: open.length ? `Pray through your prayer points: ${pts}${open.length > 2 ? ` and ${open.length - 2} more` : ''}.` : 'Pray through your prayer points.',
+    prayerlog: 'Log today’s prayer before you sleep.',
+    fast: `Today is a fast day, until ${g.fastUntil || '18:00'}.`, fasteve: 'Tomorrow is a fast day.',
+  };
+  const soon = {
+    quiet: `In ${lead} minutes: quiet time (${g.quietTime}). Today’s reading: ${portion}.`,
+    prayer: (t) => `In ${lead} minutes: prayer time (${t}).`,
+    study: topic ? `In ${lead} minutes: Bible study, ${topic}.` : `In ${lead} minutes: Bible study.`,
+    reading: book ? `In ${lead} minutes: read ${book.title}.` : `In ${lead} minutes: reading.`,
+    points: `In ${lead} minutes: pray through your prayer points.`,
+    prayerlog: `In ${lead} minutes: log today’s prayer.`,
+  };
+  const words = (kind, key, date, isSoon, t) => {
+    const w = (isSoon ? soon : now)[kind];
+    const text = typeof w === 'function' ? w(t) : w;
+    return `${text} ${remindVerse(kind === 'fast' || kind === 'fasteve' ? 'fasting' : kind, `${key}@${date}`).line}`;
+  };
+  return words;
 }
 
 // For the push server: the next 7 days, as opaque keys, a category and a time
@@ -279,11 +319,13 @@ export function lifeSchedule(state, today) {
   if (!l.setupDone) return [];
   const busy = state.profile?.holdWhenBusy === false ? [] : commitmentsOf(state.profile);
   const lead = Number(state.ministry?.settings?.reminders?.leadMinutes ?? 30);
+  const words = lifeWords(state, today, lead);
   const tz = state.ministry.settings.timezone;
   const out = [];
   for (let i = 0; i < 7; i++) {
     const d = addDays(today, i);
-    const one = (key, cat, t) => { if (t && !(i === 0 && l.sent[`${key}@${d}`])) out.push({ key: `life-${key}@${d}`, cat, sendAt: zonedToUtc(d, t, tz) }); };
+    const kindOf = (key) => (key.startsWith('prayer-') ? 'prayer' : key.replace(/-soon$/, ''));
+    const one = (key, cat, t) => { if (t && !(i === 0 && l.sent[`${key}@${d}`])) out.push({ key: `life-${key}@${d}`, cat, sendAt: zonedToUtc(d, t, tz), body: words(kindOf(key), key.replace(/-soon$/, ''), d, key.endsWith('-soon'), key.startsWith('prayer-') ? key.slice(7).replace(/-soon$/, '') : t) }); };
     const add = (key, cat, t, heads = true) => {
       if (!t) return;
       const at = afterBusy(busy, d, t); one(key, cat, at);

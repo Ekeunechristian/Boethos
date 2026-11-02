@@ -1,4 +1,5 @@
 import { useState, Fragment } from 'react';
+import { Fold } from '../../components/Phone.jsx';
 import { Clock, X, ArrowRight, Copy, Check, Phone, Cake, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { isTeleSoul, teleTimes, telePace, alerts, pvciWeek, pvciRange, dailyDone, dailyMet, DAILY, callsToday, prepFor, needAttention, attendanceWeeks, isFlock, vision, meetingList, meetingState, submitted, meetingStats, establishment, EST_STEPS, weekSummary, mondayOf, addDays, daysBetween, weekdayOf, stableMovement, typeLabel, membershipLabel, STATE_LABEL } from '../../store/ministry';
 import { MINISTRY, PVTI, CARE_STATUS, REGISTERED } from '../../data/ministry';
@@ -765,7 +766,7 @@ function WeeklyReview() {
   );
 }
 
-const TABS = [['', 'Action centre'], ['vision', 'Vision 25'], ['week', 'Weekly review']];
+const TABS = [['', 'Action centre'], ['vision', 'Vision 25'], ['week', 'Weekly review'], ['campaigns', 'Campaigns']];
 export default function Dashboard({ tab = '' }) {
   const { m, today, now } = useM();
   const live = m.people.filter(p => !['transferred', 'departed'].includes(p.membership));
@@ -776,16 +777,16 @@ export default function Dashboard({ tab = '' }) {
         sub={{ '': 'Feed my sheep. Thursday Bible study, Saturday church, and every person in between.', vision: `${MINISTRY.vision.target} stable members: people who belong, return and grow. Each seat is filled by your review, not by a count.`, week: 'The week at a glance: meetings, the daily rhythm, PVTI, and your notes.' }[t]}>
         <TitleBlock items={[['People', live.length], ['Members', live.filter(p => ['member', 'stable'].includes(p.membership)).length], ['Needs you', alerts(m, today, now).length]]} />
       </Head>
-      <div style={{ marginBottom: 22 }}><Seg value={t} onChange={(v) => go('poimaino', ...(v ? [v] : []))} options={TABS} /></div>
+      <div style={{ marginBottom: 22 }}><Seg value={t} onChange={(v) => (v === 'campaigns' ? go('poimaino', 'campaigns') : go('poimaino', ...(v ? [v] : [])))} options={TABS} /></div>
       {t === '' && (
         <>
           <Kpis />
-          <div className="pd-grid first"><TodayRhythm /><ChatPanel /></div>
-          <WeekStrip />
+          <div className="pd-grid first"><TodayRhythm /><Fold title="Bacenta chat" hint="What to share today"><ChatPanel /></Fold></div>
+          <Fold title="This week" hint="Day by day: meetings, calls and the daily rhythm"><WeekStrip /></Fold>
           <div className="pd-grid"><TodayCalls /><ActionCentre /></div>
-          <div className="pd-grid"><PvciPanel /><AttendanceChart /></div>
-          <div className="pd-grid"><Ready /><Attention /></div>
-          <div className="pd-grid"><FlockState /><VisionPanel /></div>
+          <Fold title="PVTI and attendance" hint="This week’s PVTI, and Thursday and Saturday over time"><div className="pd-grid"><PvciPanel /><AttendanceChart /></div></Fold>
+          <Fold title="Ready for the next meeting" hint="Who has been contacted, and who needs attention"><div className="pd-grid"><Ready /><Attention /></div></Fold>
+          <Fold title="The flock and Vision 25" hint="Where everyone is, and the 25 seats"><div className="pd-grid"><FlockState /><VisionPanel /></div></Fold>
         </>
       )}
       {t === 'vision' && <VisionPage />}

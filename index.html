@@ -15,6 +15,15 @@
     <meta name="apple-mobile-web-app-title" content="Boēthos" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Boēthos</title>
+    <script>
+      // Light or dark, before the first paint, so the screen never flashes the wrong colour
+      (function () {
+        var t = 'system'; try { t = localStorage.getItem('boethos_theme') || 'system'; } catch (e) {}
+        var dark = t === 'dark' || (t === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+        document.querySelector('meta[name=theme-color]').setAttribute('content', dark ? '#1A1A16' : '#F8F6EE');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

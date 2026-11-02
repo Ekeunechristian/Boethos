@@ -101,18 +101,22 @@ Deno.serve(async (req) => {
 
   // The scheduler
   if (!env('CRON_SECRET') || token !== env('CRON_SECRET')) return new Response('Forbidden', { status: 403, headers: cors });
-  const { data: due } = await admin.from('reminder_queue').select('user_id,key,category').is('sent_at', null)
+  const { data: due } = await admin.from('reminder_queue').select('user_id,key,category,body').is('sent_at', null)
     .lte('send_at', new Date().toISOString()).gte('send_at', new Date(Date.now() - 6 * 3600e3).toISOString()).limit(500);
-  const byUser = new Map<string, { key: string; category: string }[]>();
+  const byUser = new Map<string, { key: string; category: string; body: string | null }[]>();
   for (const r of due ?? []) byUser.set(r.user_id, [...(byUser.get(r.user_id) ?? []), r]);
   let sent = 0;
   for (const [userId, rows] of byUser) {
     // Mark first, so an overlapping run can never send the same reminder twice
     const keys = rows.map((r) => r.key);
     const { data: claimed } = await admin.from('reminder_queue').update({ sent_at: new Date().toISOString() })
-      .eq('user_id', userId).in('key', keys).is('sent_at', null).select('key,category');
+      .eq('user_id', userId).in('key', keys).is('sent_at', null).select('key,category,body');
     if (!claimed?.length) continue;
-    await sendTo(userId, { title: 'Boēthos', body: text(claimed.map((r) => r.category), claimed.length), url: '/?go#/home', tag: 'boethos-poimaino' });
+    // Each reminder says exactly what it is (its own words, made on your device). Without words, a short summary.
+    const worded = claimed.filter((r) => r.body), plain = claimed.filter((r) => !r.body);
+    for (const r of worded.slice(0, 4)) await sendTo(userId, { title: 'Boēthos', body: r.body as string, url: '/?go#/home', tag: 'boethos-' + r.key });
+    if (worded.length > 4) await sendTo(userId, { title: 'Boēthos', body: `And ${worded.length - 4} more things need you.`, url: '/?go#/home', tag: 'boethos-more' });
+    if (plain.length) await sendTo(userId, { title: 'Boēthos', body: text(plain.map((r) => r.category), plain.length), url: '/?go#/home', tag: 'boethos-poimaino' });
     sent += claimed.length;
   }
   return new Response(JSON.stringify({ sent }), { headers: { ...cors, 'Content-Type': 'application/json' } });

@@ -2,6 +2,7 @@
 // calculation the ministry pages read. All design choices here are App design (see docs/POIMAINO.md).
 import { STAGES_DEFAULT, OUTREACH_DEFAULT, STABLE_CRITERIA, MILESTONES, MEETING_TYPES, CAMPAIGNS, REGISTERED, MINISTRY, pvciOf } from '../data/ministry';
 import { afterBusy } from '../lib/busy';
+import { remindVerse } from './remindVerses';
 
 // ── Dates: always local to your configured timezone, as YYYY-MM-DD, safe across daylight saving ──
 export const defaultTz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } };
@@ -807,7 +808,8 @@ export function dueReminders(m, today, nowTime) {
     const dt = m.settings.daily || {}, dd = dailyDone(m, today);
     [['daily-ev-soon', dt.evangelism, dd.evangelise, 'Evangelise'], ['daily-chat-soon', dt.chat, dd.chat, 'Bacenta chat'], ['daily-pvti-soon', dt.pvti, dd.pvti, 'PVTI']].forEach(([k, t, done, l]) => { if (!done && soonNow(t)) out.push({ key: `${k}:${today}`, cat: 'followups', pri: 2, soon: true, lead, title: `${l} at ${t}`, why: 'Starting soon.', href: '#/poimaino', due: today }); });
   }
-  return out.filter(a => r.categories[a.cat] !== false && typeOn(m, notifyType(m, a.key)) && a.pri <= 2 && !m.sentReminders[`${a.key}@${today}`] && !(fuTime(a) && nowTime < fuTime(a)));
+  return out.filter(a => r.categories[a.cat] !== false && typeOn(m, notifyType(m, a.key)) && a.pri <= 2 && !m.sentReminders[`${a.key}@${today}`] && !(fuTime(a) && nowTime < fuTime(a)))
+    .map(a => ({ ...a, body: notifyWords(m, a.key, today, a) }));
 }
 
 // What a notification may say. Lock screens are not private: never names, notes or care details.
@@ -857,7 +859,8 @@ export function reminderSchedule(m, today, busy = []) {
     let d = date, t = afterBusy(busy, date, time);
     if (inQuiet(t)) { if (r.quietFrom > r.quietTo && t >= r.quietFrom) d = addDays(d, 1); t = r.quietTo; } // moved to the end of quiet hours
     if (m.sentReminders[`${key}@${d}`]) return; // already shown in the app
-    out.push({ key: `${key}@${d}`, cat, sendAt: zonedToUtc(d, t, tz) });
+    const soon = /-soon[:@]/.test(key + '@');
+    out.push({ key: `${key}@${d}`, cat, sendAt: zonedToUtc(d, t, tz), ...(r.hideDetails ? {} : { body: notifyWords(m, key, d, { soon, lead: Number(r.leadMinutes ?? 30), time }) }) });
   };
   meetingList(m, today, 0).filter(mt => mt.status !== 'cancelled' && !submitted(mt) && m.settings.times?.[mt.type]).forEach(mt => {
     const start = mins(m.settings.times[mt.type]);
@@ -946,12 +949,60 @@ export const typeOn = (m, id) => m.settings.reminders.types?.[id] !== false;
 
 // A sample of each kind, for the Test buttons. Generic, like the real ones: no names on the lock screen.
 export const NOTIFY_SAMPLE = {
-  tele: () => { const v = teleVerse(new Date().toISOString().slice(0, 10)); return `Time to telepastor. “${v.text}” ${v.ref}`; },
-  deadline: () => 'Greater Love: 1 thing needs you (follow-ups).', followups: () => 'Greater Love: 1 thing needs you (follow-ups).',
-  visits: () => 'Greater Love: 1 thing needs you (follow-ups).', meetingSoon: () => 'Greater Love: 1 thing needs you (attendance).',
-  attendance: () => 'Greater Love: 1 thing needs you (attendance).', prepare: () => 'Greater Love: 1 thing needs you (attendance).',
-  sermon: () => 'Greater Love: 1 thing needs you (Thursday preparation).', evangelism: () => 'Greater Love: 1 thing needs you (follow-ups).',
-  chat: () => 'Greater Love: 1 thing needs you (follow-ups).', pvti: () => 'Greater Love: 1 thing needs you (follow-ups).',
-  welcome: () => 'Greater Love: 1 thing needs you (follow-ups).', absence: () => 'Greater Love: 1 thing needs you (follow-ups).',
-  care: () => 'Greater Love: 1 thing needs you (follow-ups).', campaigns: () => 'Greater Love: 1 thing needs you (campaign actions).',
+  tele: () => 'Telepastor now: Sarah, Ama and 2 more still to reach today.',
+  deadline: () => 'Birmingham before Thursday: 3 not reached yet. Confirm Bible study and the bus.',
+  followups: () => 'Call Sarah: ask how her exams went at 15:00.', visits: () => 'Visit Ama on Thursday 5 Nov at 14:00: pray with the family.',
+  meetingSoon: () => 'Thursday Bible Study at 19:00 today. Get ready.', attendance: () => 'Submit the attendance for Saturday Church.',
+  prepare: () => 'Prepare people for Saturday Church: 4 not contacted yet.', sermon: () => 'Thursday preparation (“Feed my sheep”): study the scriptures.',
+  evangelism: () => 'Evangelise today: share the gospel with someone, then record it.', chat: () => 'Share in the Bacenta chat: a verse, a word from Thursday, or a reminder for Saturday.',
+  pvti: () => 'Pray for, visit, teach or reach someone today, then record it.', welcome: () => 'Welcome Esi: first visit on Saturday.',
+  absence: () => 'Check in with Kwame: marked absent at the last 3 meetings.', care: () => 'Care review for Sarah today.', campaigns: () => 'Sunday school drive: invite three families.',
 };
+// A Test notification: the sample, with a verse that fits, just as the real one comes
+export const notifySample = (id) => `${NOTIFY_SAMPLE[id]()} ${remindVerse(id, `test-${id}-${Date.now()}`).line}`;
+
+// ── What a reminder says: the person, the task and the time, with a verse that fits ──
+const VERB = { call: 'Call', message: 'Message', visit: 'Visit', prayer: 'Pray for', welcome: 'Welcome', welfare: 'Check on', pastoral: 'Pastoral contact with',
+  conversation: 'Talk with', teaching: 'Teach', counselling: 'Counsel', invitation: 'Invite' };
+const listNames = (ns) => (ns.length <= 3 ? ns.join(', ').replace(/, ([^,]*)$/, ' and $1') : `${ns.slice(0, 3).join(', ')} and ${ns.length - 3} more`);
+export function notifyWords(m, key, date, x = {}) {
+  const r = m.settings.reminders, lead = x.lead ?? Number(r.leadMinutes ?? 30);
+  const soon = x.soon ?? /-soon/.test(key);
+  const who = (id) => m.people.find(p => p.id === id)?.name?.split(' ')[0] || 'someone';
+  const at = (t) => (t ? ` at ${t}` : '');
+  let text;
+  if (key.startsWith('calls')) {
+    const left = callsToday(m, date).filter(c => !c.done).map(c => c.p.name.split(' ')[0]);
+    const slot = key.split(':').slice(2).join(':') || x.time;
+    text = soon ? `Telepastoring at ${slot}: ${left.length ? listNames(left) : 'your names for today'}.` : `Telepastor now: ${left.length ? `${listNames(left)} still to reach today` : 'your names for today'}.`;
+  } else if (key.startsWith('fu')) {
+    const f = m.followUps.find(y => y.id === key.split(':')[1].split('@')[0]);
+    if (f) {
+      const t = f.time || (key.startsWith('fu-soon') ? '' : '');
+      const what = `${VERB[f.kind] || 'Follow up with'} ${f.personId ? who(f.personId) : (f.personName || 'someone')}${f.title ? `: ${f.title.replace(/[.]$/, '')}` : ''}`;
+      text = soon ? `In ${lead} minutes: ${what.charAt(0).toLowerCase() + what.slice(1)}${at(f.time)}.` : `${what}${at(f.time)}${f.due < date ? ` (due ${f.due})` : ''}.`;
+    }
+  } else if (key.startsWith('visit-soon')) {
+    const f = m.followUps.find(y => y.id === key.split(':')[1]);
+    if (f) text = `Visit ${who(f.personId)} on ${new Date(f.due + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}${at(f.time)}${f.title ? `: ${f.title}` : ''}.`;
+  } else if (key.startsWith('daily-ev')) {
+    text = soon ? `In ${lead} minutes: evangelism. Share the gospel with someone today.` : 'Evangelise today: share the gospel with someone, then record it.';
+  } else if (key.startsWith('daily-chat')) {
+    const plan = (m.chatPlan || {})[date];
+    text = soon ? `In ${lead} minutes: share in the ${m.settings.name || 'Bacenta'} chat.` : `Share in the ${m.settings.name || 'Bacenta'} chat${plan ? `: “${plan.slice(0, 90)}${plan.length > 90 ? '…' : ''}”` : ': a verse, a word from Thursday, or a reminder for Saturday'}.`;
+  } else if (key.startsWith('daily-pvti')) {
+    text = soon ? `In ${lead} minutes: pray for, visit, teach or reach someone.` : 'Pray for, visit, teach or reach someone today, then record it.';
+  } else if (key.startsWith('mt-soon') || key.startsWith('mt-submit') || key.startsWith('mt-confirm')) {
+    const [type, d] = key.split(':').slice(1); const lab = typeLabel(m, type), tm = m.settings.times?.[type];
+    text = key.startsWith('mt-soon') ? `${lab}${at(tm)}${d === date ? ' today' : ''}. Get ready.` : key.startsWith('mt-confirm') ? `Was ${lab} on ${d} held? Record it.` : `Submit the attendance for ${lab} (${d}).`;
+  } else if (key.startsWith('sermon:')) {
+    const [, id, stage] = key.split(':'); const sm = m.sermons.find(y => y.id === id);
+    const step = sermonPlan(m, date).find(y => y.sermonId === id && String(y.stage) === String(stage).split('@')[0]);
+    text = `Thursday preparation${sm?.title ? ` (“${sm.title}”)` : ''}: ${step?.label?.toLowerCase() || 'next step'}.`;
+  } else if (key.startsWith('cmp:')) {
+    const [, cid, aid] = key.split(':'); const c = m.campaigns.find(y => y.id === cid); const a = c?.activities?.find(y => y.id === aid?.split('@')[0]);
+    text = `${c?.label || c?.name || 'Campaign'}: ${a?.title || 'an activity is due'}.`;
+  }
+  text = text || x.title || 'Something at Greater Love needs you.';
+  return `${text} ${remindVerse(notifyType(m, key.split('@')[0]), `${key}@${date}`).line}`;
+}

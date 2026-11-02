@@ -36,6 +36,8 @@ create table if not exists public.reminder_queue (
   sent_at  timestamptz,
   primary key (user_id, key)
 );
+-- what the reminder says (made on your device); empty if you hide details on the lock screen
+alter table public.reminder_queue add column if not exists body text;
 create index if not exists reminder_queue_due on public.reminder_queue (send_at) where sent_at is null;
 alter table public.reminder_queue enable row level security;
 drop policy if exists "own reminders" on public.reminder_queue;

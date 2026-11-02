@@ -3,7 +3,8 @@ import TimeInput from '../lib/TimeInput.jsx';
 import { Bell, BellOff, Sunrise, HandHeart, BookOpen, Flame, ListChecks, Library, Moon, PhoneCall, AlarmClock, CalendarCheck, Church, ClipboardCheck, Users, Mic, Footprints, MessageCircle, NotebookPen, Sparkles, LifeBuoy, Megaphone, Home, Send } from 'lucide-react';
 import { useStore } from '../store/index.jsx';
 import { useToast } from '../lib/ui.jsx';
-import { NOTIFY_TYPES, NOTIFY_SAMPLE, teleTimes } from '../store/ministry';
+import { NOTIFY_TYPES, notifySample, teleTimes, localDay } from '../store/ministry';
+import { lifeWords } from '../store/life';
 import { cloudConfig } from '../lib/cloud';
 import { notify } from '../components/Engine.jsx';
 
@@ -45,6 +46,9 @@ export default function NotificationsCard() {
   const setM = (data) => dispatch({ type: 'M_SETTINGS', data });
   const setLife = (data) => life('GOALS', { data });
   const push = !!cloudConfig().pushEndpoint;
+  // a Test shows the real words for your walk with God: today's reading, your topic, your book
+  const words = lifeWords(state, localDay(m.settings.timezone), Number(r.leadMinutes ?? 30));
+  const lifeSample = (x) => words({ prayerLog: 'prayerlog', fasting: 'fast' }[x.id] || x.id, `test-${x.id}-${Date.now()}`, localDay(m.settings.timezone), false, (g.prayerTimes || [])[0] || '12:00');
   const allow = async () => {
     if (typeof Notification === 'undefined') { toast('This browser cannot show notifications'); return false; }
     const p = await Notification.requestPermission(); setPerm(p);
@@ -58,7 +62,7 @@ export default function NotificationsCard() {
   };
   const testAll = async () => {
     if (perm !== 'granted' && !(await allow())) return;
-    const on = [...LIFE_TYPES.filter(x => lr[x.id]).map(x => x.sample), ...NOTIFY_TYPES.filter(x => types[x.id] !== false).map(x => NOTIFY_SAMPLE[x.id]())];
+    const on = [...LIFE_TYPES.filter(x => lr[x.id]).map(x => lifeSample(x)), ...NOTIFY_TYPES.filter(x => types[x.id] !== false).map(x => notifySample(x.id))];
     for (let i = 0; i < on.length; i++) await notify(on[i], { tag: `boethos-test-${i}-${Date.now()}`, url: '/?go#/settings' });
     toast(`${on.length} test notifications sent`);
   };
@@ -93,7 +97,7 @@ export default function NotificationsCard() {
       <div className="st-group">
         <div className="st-group-h"><h3>Your walk with God</h3><span>{lifeOn} of {LIFE_TYPES.length} on</span></div>
         <ul className="st-list">{LIFE_TYPES.map(x => (
-          <Row key={x.id} icon={x.icon} label={x.label} desc={x.desc} on={!!lr[x.id]} onToggle={v => setLife({ reminders: { [x.id]: v } })} onTest={() => test(x.sample)}
+          <Row key={x.id} icon={x.icon} label={x.label} desc={x.desc} on={!!lr[x.id]} onToggle={v => setLife({ reminders: { [x.id]: v } })} onTest={() => test(lifeSample(x))}
             when={x.times ? <a href="#rhythm" className="st-link" onClick={e => { e.preventDefault(); document.getElementById('rhythm')?.scrollIntoView({ behavior: 'smooth' }); }}>{(g[x.times] || []).join(', ') || 'No times'}</a> : time(x.time, g[x.time])} />
         ))}</ul>
       </div>
@@ -102,9 +106,9 @@ export default function NotificationsCard() {
         <div className="st-group-h"><h3>Shepherding</h3><span><Switch on={r.enabled} onChange={v => setM({ reminders: { enabled: v } })} label="All shepherding reminders" />{r.enabled ? `${pmOn} of ${NOTIFY_TYPES.length} on` : 'All off'}</span></div>
         <ul className={'st-list' + (r.enabled ? '' : ' disabled')}>{NOTIFY_TYPES.map(x => (
           <Row key={x.id} icon={PM_ICON[x.id] || Bell} label={x.label} desc={x.desc} on={r.enabled && types[x.id] !== false} disabled={!r.enabled}
-            onToggle={v => setM({ reminders: { enabled: true, types: { [x.id]: v } } })} onTest={() => test(NOTIFY_SAMPLE[x.id]())} when={pmWhen[x.id] || <span className="st-auto">When due</span>} />
+            onToggle={v => setM({ reminders: { enabled: true, types: { [x.id]: v } } })} onTest={() => test(notifySample(x.id))} when={pmWhen[x.id] || <span className="st-auto">When due</span>} />
         ))}</ul>
-        <p className="st-note">On the lock screen, shepherding reminders never show names or notes: they say “Greater Love: 2 things need you”. Telepastoring reminders carry a verse instead.</p>
+        <label className="st-private"><span><b>Hide details on the lock screen</b><small>Reminders normally say exactly what to do: “Call Sarah: ask how her exams went”, each with a verse. Switch this on if others see your phone; they then just say “Greater Love: 2 things need you”. Private pastoral notes are never shown either way.</small></span><Switch on={!!r.hideDetails} onChange={v => setM({ reminders: { hideDetails: v } })} label="Hide details on the lock screen" /></label>
       </div>
     </section>
   );
