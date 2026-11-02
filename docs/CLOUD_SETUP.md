@@ -14,25 +14,27 @@ It uses your own free Supabase project, so only you can read your data. The step
    - the **Project URL** (`https://xxxx.supabase.co`);
    - the **anon public** key.
 3. Open **SQL Editor → New query**, paste the whole of `supabase/schema.sql` and press **Run**.
-4. Open **Authentication → Email Templates → Magic Link** and make sure the email contains `{{ .Token }}`. That is the 6-digit code the app asks for. For example:
-   `Your Boēthos code is {{ .Token }}`
+4. Open **Authentication → Providers → Email** and turn off **Confirm email**, so an account works as soon as it is created. Sign-in uses email and password, which works inside the installed phone app.
+5. Copy `.env.example` to `.env` and fill in the Project URL, the anon key and (after step 4 below) the VAPID public key. They are public values and are built into the app, so no device has to paste them.
 
 ## 2. Put the app online
 
-Your phone needs the app at an https address. Run `npm run build` and host the `dist` folder on any static host, for example:
+Your phone needs the app at an https address. Run `npm run build` and host the `dist` folder on any static host. This project uses Cloudflare Pages (no badge on the free plan):
 
-- Netlify: drag and drop the `dist` folder;
-- Cloudflare Pages;
-- Vercel.
+```bash
+npx wrangler pages deploy dist --project-name boethos --branch main
+```
+
+`public/_headers` keeps the page and the service worker uncached, so updates reach the phone.
 
 Then add that address in Supabase under **Authentication → URL Configuration → Site URL**.
 
 ## 3. Connect and sign in
 
-In Boēthos, open **Account → Cloud and push**:
+In Boēthos, open **Settings → Phone and cloud**:
 
-1. Paste the Project URL and the anon key, then press **Save**.
-2. Enter your email and press **Email me a code**, then type the 6-digit code.
+1. The first time, press **First time? Create an account** and choose a password (8 or more characters).
+2. On every other device, **Sign in** with the same email and password.
 3. **The first time on a device,** you choose either "Use the cloud copy" or "Keep this device's copy". Nothing is overwritten without your choice.
 4. **After that,** the app saves a few seconds after each change. The cloud icon in the header shows the state:
    - green: saved;
@@ -61,8 +63,7 @@ Restricted pastoral notes stay on the device unless you tick "Also sync restrict
 5. **Install the app on your phone.**
    - Android Chrome: menu → Install app.
    - iPhone (iOS 16.4 or later): Safari → Share → Add to Home Screen. Open it from the home screen, because push only works there.
-6. **Turn it on.** In the installed app open **Account → Cloud and push**:
-   - paste the VAPID **public** key and press **Save**;
+6. **Turn it on.** In the installed app open **Settings → Phone and cloud**:
    - press **Turn on push**, then **Send a test push**;
    - lock the phone.
    If "Boēthos: test reminder" arrives, press **Yes, it arrived**. Push is marked verified only then.

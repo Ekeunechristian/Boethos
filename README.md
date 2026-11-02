@@ -42,63 +42,44 @@ Cloud sync and push setup: [docs/CLOUD_SETUP.md](docs/CLOUD_SETUP.md).
 
 *"The Lord is my helper" (Hebrews 13:6).* βοηθός means helper.
 
-Boēthos is the home page, and the app always opens there. It shows:
+The app opens on the Boēthos home page: the verse of the day, what is still to do today, your streak and your analytics. From there, two sections:
 
-- the verse of the day;
-- what is still to do today;
-- your streak, XP and analytics.
-
-From it, two cards lead into the two sections:
-
-- **Spoudazō** (σπουδάζω, 2 Timothy 2:15): your own walk with God. Quiet time, prayer and fasting, the Word, study topics, books and messages, built from the rhythm you set.
-- **Poimainō** (ποιμαίνω, John 21:16): your Bacenta. People, Thursday and Saturday, follow-up, sermons and campaigns.
+- **Spoudazō** (σπουδάζω, 2 Timothy 2:15): your own walk with God.
+- **Poimainō** (ποιμαίνω, John 21:16): the Bacenta you lead.
 
 Every page carries a KJV verse.
 
-## Run it
-
-```bash
-cd shepherds-roadmap-app
-npm install
-npm run dev        # http://localhost:5175
-```
-
-## Spoudazō
+### Spoudazō
 
 | Place | What it does |
 | --- | --- |
-| **Today** | Your rhythm for today. Each discipline is ticked when you record the real thing, right there. |
-| **Quiet time** | A guided morning time with God, the journal, and Character (self-examination and your rule of life). |
-| **Prayer** | Prayer times, the prayer log (ACTS), requests and fasting. |
-| **The Word** | Bible reading through all 66 books, study topics (one focus at a time), and memory verses. |
-| **Library** | Books for you and for your members (Bishop Dag Heward-Mills' first), messages and camps. |
+| **Today** | Your rhythm for today. Each discipline is ticked when you record the real thing. |
+| **Quiet time** | A guided time with God, connected to your reading plan and study topic; the journal; character self-examination. |
+| **Prayer** | Prayer times and the prayer log, prayer points by category, and fasting (recurring fast days included). |
+| **The Word** | Bible reading through all 66 books, study topics with streaks, and a journal of what you learned. |
+| **Library** | Books, messages and camps, with reading streaks. |
 
-The phased plan has been retired. Where each phase went is in `docs/SPOUDAZO.md`.
-
-## Poimainō
+### Poimainō
 
 | Place | What it does |
 | --- | --- |
-| **Dashboard** | The action centre (every alert with its reason; done, snooze or dismiss), the latest Thursday and Saturday, Vision 25, the weekly review and Greater Love settings. |
-| **People** | One record per person, from contact to stable member, with dated history. Also:<br>• soul list and outreach;<br>• workers and the leadership pipeline;<br>• private care needs. |
-| **Services** | Thursday Bible study and Saturday church:<br>• attendance (unmarked is not absent);<br>• versioned reports;<br>• a deterministic reflection;<br>• trends. |
-| **Follow-up** | Calls, messages, visits and welcomes. Attempted is kept separate from reached. Includes the pre-service call list. |
-| **Sermons** | Thursday preparation, from the material arriving to reflection. |
-| **Campaigns** | All 22 emphases with source and local actions, the setup wizard, reviews, and the manual's optional start-up preset. |
+| **Dashboard** | The action centre (each alert with its reason), the daily rhythm, attendance charts, PVTI, the state of the flock, Vision 25 and the weekly review. |
+| **People** | Everyone who has come to church at least once: members, stable members, first and second timers, visitors, new converts. Also:<br>• needs attention, by level;<br>• raising leaders;<br>• care needs, kept private.<br>“Gave their life” records the day and plans first steps. |
+| **Services** | Thursday Bible study and Saturday church:<br>• attendance (unmarked is not absent);<br>• versioned reports;<br>• reflection;<br>• trends with first and second timers. |
+| **Shepherding** | Five parts:<br>• the follow-up queue;<br>• **telepastoring**: everyone on the soul list once a week, Birmingham Monday to Wednesday and everyone else Thursday or Friday, with retries, invitations, a pace indicator and Saturday wake-up calls;<br>• visits;<br>• the PVTI log;<br>• the Bacenta chat. |
+| **Evangelism** | Encounters, and the soul list: everyone from church, from evangelism, and anyone you pray for, by category and location. |
+| **Sermons** | Every Thursday sermon, with the next one first. Materials (PDF, YouTube, audio), preparation stages, and a clean view to preach from. |
 
-The earlier Flock and Pulpit pages now live in Poimainō, and their old addresses redirect.
+More detail:
 
-Full details:
-
-- Boēthos and Spoudazō, and where the old phases went: `docs/SPOUDAZO.md`;
-- what comes from the books, what you required and what is app design: `docs/POIMAINO.md`;
-- privacy rules and validation results: `docs/POIMAINO.md`;
+- Boēthos and Spoudazō: `docs/SPOUDAZO.md`;
+- Poimainō, its sources and its privacy rules: `docs/POIMAINO.md`;
 - cloud sync and phone reminders: `docs/CLOUD_SETUP.md`.
 
 ## Your data
 
-Your data is saved in this browser under the same key as before (`shepherd_os_v1`), so nothing you recorded is lost. The old Flock and Pulpit records were copied into Poimainō once, and the originals were left untouched.
+Everything is saved in your browser first, so the app works offline.
 
-To get the same data on your phone and computer, connect your own Supabase project (Account → Cloud and push), or use a backup file. Restricted pastoral notes stay out of backups and sync unless you choose otherwise.
+In **Settings → Phone and cloud**, create an account with your email and a password. Your data is then also kept in your private cloud copy and stays the same on your phone and computer. Only your account can read it.
 
-Previous interfaces are kept in `_backup-v2-ui/` and `_backup-old-ui/`.
+Restricted pastoral notes stay on the device, and out of backups, unless you choose otherwise. Notifications never show names or notes on the lock screen.
