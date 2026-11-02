@@ -1211,6 +1211,25 @@ html.dark .cloud-dot { background: #59624a; }
 html.dark .cloud-dot.synced { background: #5c8a38; }
 html.dark .cloud-dot.pending, html.dark .cloud-dot.saving { background: #5a4517; }
 html.dark .cloud-dot.error, html.dark .cloud-dot.conflict { background: #b4592f; }
+html.dark .sw-head { border-top: 4px solid #a18044; }
+html.dark .sw-head-t small { color: #a18044; }
+html.dark .sw-head-n span { background: #1f1c15; }
+html.dark .sw-head-n b { color: #b19564; }
+html.dark .sw-src button.on { border-color: #a18044; background: #1f1a11; color: #b19564; }
+html.dark .sw-entry { background: #22201c; }
+html.dark .sw-what { color: #a18044; }
+html.dark .sw-mats li { background: #21221f; border: 1px solid #1a1a15; }
+html.dark .sw-mat-ic { background: #1f1a11; color: #a18044; }
+html.dark .sw-remind { background: #21221f; border: 1px solid #1a1a15; }
+html.dark .sw-remind.on { background: #1d1e19; border-color: #313624; }
+html.dark .sw-remind-h i { background: #20221a; }
+html.dark .sw-remind-h i::after { background: #242424; box-shadow: 0 1px 2px rgba(0,0,0,0.40); }
+html.dark .cg-act { background: #21221f; border: 1px solid #1a1a15; }
+html.dark .cg-act.done { background: #1d1e19; border-color: #313624; }
+html.dark .cg-bar { background: rgba(220,218,211,0.08); }
+html.dark .cg-ring, html.dark .cg-tick { border: 2px solid #313624; }
+html.dark .cg-ring.done, html.dark .cg-tick.done { color: #242424; }
+html.dark .cg-list li { background: #21221f; border: 1px solid #1a1a15; }
 
 html.dark { color-scheme: dark; }
 html.dark, html.dark body {
@@ -1224,4 +1243,10 @@ html.dark ::selection { background: #3D4A2E; color: #F4F0E2; }
 html.dark input, html.dark textarea, html.dark select { background-color: #1E1E1A; color: var(--ink); border-color: var(--line2); }
 html.dark input::placeholder, html.dark textarea::placeholder { color: #7D7869; }
 html.dark button.primary, html.dark .btn.primary { color: #16190F; }
+/* a button you can't press yet: visible, just quiet */
+html.dark button.primary:disabled, html.dark button:disabled { background: #2C2F26 !important; border-color: #3A3D32 !important; color: #8B907E !important; opacity: 1 !important; filter: none !important; }
+/* switches keep a light knob, so on and off are easy to see */
+html.dark .pc-sw .sw::after, html.dark .st-sw span::after, html.dark .sw-remind-h i::after, html.dark .switch .sw::after, html.dark [role=switch] + span::after, html.dark [role=switch] + i::after { background: #ECE8DC !important; }
+html.dark .pc-sw .sw, html.dark .st-sw span, html.dark .sw-remind-h i, html.dark .switch .sw { background: #3A3D32; }
+html.dark .pc-sw input:checked + .sw, html.dark .st-sw input:checked + span, html.dark .sw-remind-h input:checked + i, html.dark .switch input:checked + .sw { background: var(--accent) !important; }
 html.dark input:-webkit-autofill, html.dark textarea:-webkit-autofill { -webkit-text-fill-color: var(--ink); -webkit-box-shadow: 0 0 0 1000px #1E1E1A inset; box-shadow: 0 0 0 1000px #1E1E1A inset; }

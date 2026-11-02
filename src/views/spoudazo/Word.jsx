@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { X, Plus, Check, ArrowRight, Search } from 'lucide-react';
+import { X, Plus, Check, ArrowRight, Search, BookOpen, BookMarked, Tablet, FileText, Video, Headphones, Link2, ExternalLink } from 'lucide-react';
+import TimeInput from '../../lib/TimeInput.jsx';
 import { ROADMAP_DATA } from '../../data/roadmap';
 import { BIBLE, BIBLE_CHAPTERS, TOPIC_GROUPS, STUDY_PROMPTS } from '../../data/spoudazo';
 import { allTopics, topicOf, nextChapter, lifeStats, planPortion, planPosition, streaks } from '../../store/life';
@@ -119,13 +120,138 @@ function Reading() {
 }
 
 // ── Study topics: one topic, learned over many days ──
+// A topic you study over days and weeks: its materials, as many entries as you like, and its own reminder
+const MAT_KINDS = [['bible', 'Bible', BookOpen], ['book', 'Book', BookMarked], ['ebook', 'eBook', Tablet], ['pdf', 'PDF', FileText], ['video', 'Video', Video], ['audio', 'Audio', Headphones], ['link', 'Link', Link2]];
+const VERSIONS = ['KJV', 'NKJV', 'NIV', 'ESV', 'AMP', 'NLT', 'NASB', 'Other'];
+const matKind = (k) => MAT_KINDS.find(x => x[0] === k) || MAT_KINDS[6];
+const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function TopicReminder({ topicId, compact }) {
+  const { l, act, toast } = useLife();
+  const tr = (l.topicReminders || {})[topicId] || { on: false, days: [1, 3, 5], time: '20:00' };
+  const set = (data, msg) => { act('TOPIC_REMIND', { id: topicId, data: { ...tr, ...data } }); msg && toast(msg); };
+  return (
+    <div className={'sw-remind' + (tr.on ? ' on' : '')}>
+      <label className="sw-remind-h"><span><b>Remind me to study this</b>{!compact && <small>Optional. On the days and at the time you choose, with a heads-up before.</small>}</span>
+        <input type="checkbox" role="switch" checked={!!tr.on} onChange={e => set({ on: e.target.checked }, e.target.checked ? 'Topic reminder on' : 'Topic reminder off')} /><i aria-hidden="true" /></label>
+      {tr.on && <div className="sw-remind-b">
+        <span className="st-days">{[1, 2, 3, 4, 5, 6, 0].map(d => <button key={d} type="button" className={(tr.days || []).includes(d) ? 'on' : ''} onClick={() => set({ days: (tr.days || []).includes(d) ? tr.days.filter(x => x !== d) : [...(tr.days || []), d] })}>{WD[d][0]}</button>)}</span>
+        <TimeInput value={tr.time} onChange={e => set({ time: e.target.value })} aria-label="Study time" className="st-time" />
+      </div>}
+    </div>
+  );
+}
+
+function Workspace({ cur, onBrowse }) {
+  const { l, g, today, act, toast } = useLife();
+  const mats = (l.studyMaterials || []).filter(x => x.topicId === cur.id);
+  const entries = l.studyNotes.filter(x => x.topicId === cur.id).sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
+  const blank = { source: mats[0] ? mats[0].id : 'bible', part: '', passage: '', version: 'KJV', title: '', learned: '', scripture: '', apply: '', minutes: g.studyMinutes };
+  const [n, setN] = useState(blank);
+  const [m, setM] = useState({ kind: 'book', title: '', url: '' });
+  const [filter, setFilter] = useState('');
+  const [q, setQ] = useState('');
+  const set = (k, v) => setN(x => ({ ...x, [k]: v }));
+  const isBible = n.source === 'bible', isOther = n.source === 'other';
+  const save = (e) => {
+    e.preventDefault();
+    const mat = mats.find(x => x.id === n.source);
+    act('STUDY_NOTE', { data: { title: n.title.trim(), source: isBible ? 'bible' : isOther ? 'other' : 'material', materialId: mat?.id || '', part: isBible ? '' : n.part.trim(),
+      passage: isBible ? n.passage.trim() : '', version: isBible ? n.version : '', learned: n.learned.trim(), scripture: n.scripture.trim(), apply: n.apply.trim(), minutes: Number(n.minutes) || 0 } });
+    setN(x => ({ ...blank, source: x.source, version: x.version })); toast('Entry saved. Add another whenever you learn something new.');
+  };
+  const what = (x) => (x.source === 'bible' ? `${x.passage || 'Bible'}${x.version ? ` (${x.version})` : ''}` : x.materialId ? `${mats.find(y => y.id === x.materialId)?.title || 'A material'}${x.part ? `, ${x.part}` : ''}` : (x.part || ''));
+  const shown = entries.filter(x => (!filter || (filter === 'bible' ? x.source === 'bible' : x.materialId === filter)) && (!q || `${x.title} ${x.learned} ${x.scripture} ${x.apply} ${what(x)}`.toLowerCase().includes(q.toLowerCase())));
+  const days = new Set(entries.map(x => x.date)).size, mins = entries.reduce((s, x) => s + (Number(x.minutes) || 0), 0);
+  const groups = []; shown.forEach(x => { const gg = groups[groups.length - 1]; if (gg && gg.d === x.date) gg.items.push(x); else groups.push({ d: x.date, items: [x] }); });
+  return (
+    <>
+      <section className="card sw-head">
+        <div className="sw-head-t"><small>Your study topic · day {Math.max(1, Math.round((new Date(today) - new Date(l.study.since)) / 86400000) + 1)}</small><h2>{cur.title}</h2>
+          {topicGuide(cur) && <p>{topicGuide(cur)}</p>}
+          {cur.refs?.length > 0 && <p className="sd-refs">{cur.refs.map(r => <span key={r}>{r}</span>)}</p>}</div>
+        <div className="sw-head-n"><span><b>{entries.length}</b>entries</span><span><b>{days}</b>days</span><span><b>{hm(mins)}</b>studied</span></div>
+      </section>
+      <div className="cols">
+        <div className="stack">
+          <form className="card sw-new" onSubmit={save}>
+            <div className="card-h"><h2>{entries.some(x => x.date === today) ? 'Something more from today' : 'What did you study today?'}</h2></div>
+            <div className="sw-src" role="group" aria-label="What you studied">
+              <button type="button" className={isBible ? 'on' : ''} onClick={() => set('source', 'bible')}><BookOpen size={15} />A Bible passage</button>
+              {mats.map(x => { const [, , Ic] = matKind(x.kind); return <button key={x.id} type="button" className={n.source === x.id ? 'on' : ''} onClick={() => set('source', x.id)}><Ic size={15} />{x.title}</button>; })}
+              <button type="button" className={isOther ? 'on' : ''} onClick={() => set('source', 'other')}><Plus size={15} />Something else</button>
+            </div>
+            <div className="fields">
+              {isBible ? <>
+                <div className="field"><label htmlFor="sw-p">Passage</label><input id="sw-p" value={n.passage} onChange={e => set('passage', e.target.value)} placeholder="John 10, or Psalm 23:1–6" /></div>
+                <div className="field"><label>Version</label><span className="st-seg sw-vers">{VERSIONS.map(v => <button key={v} type="button" className={n.version === v ? 'on' : ''} onClick={() => set('version', v)}>{v}</button>)}</span></div>
+              </> : <div className="field wide"><label htmlFor="sw-part">{isOther ? 'What you studied' : 'Which part'}</label><input id="sw-part" value={n.part} onChange={e => set('part', e.target.value)} placeholder={isOther ? 'A conversation, a sermon note…' : 'Chapters 2–3; pages 40–62; minutes 10–35'} /></div>}
+              <div className="field wide"><label htmlFor="sw-t">A heading for this entry (optional)</label><input id="sw-t" value={n.title} onChange={e => set('title', e.target.value)} placeholder="The shepherd knows the sheep by name" /></div>
+              <div className="field wide"><label htmlFor="sw-l">What did you learn?</label><textarea id="sw-l" value={n.learned} onChange={e => set('learned', e.target.value)} style={{ minHeight: 110 }} required /></div>
+              <div className="field"><label htmlFor="sw-s">Which scripture shaped it?</label><input id="sw-s" value={n.scripture} onChange={e => set('scripture', e.target.value)} /></div>
+              <div className="field"><label htmlFor="sw-m">Minutes</label><input id="sw-m" type="number" min="0" value={n.minutes} onChange={e => set('minutes', e.target.value)} /></div>
+              <div className="field wide"><label htmlFor="sw-a">How will it change how you live or shepherd?</label><input id="sw-a" value={n.apply} onChange={e => set('apply', e.target.value)} /></div>
+            </div>
+            <div className="fr-foot"><button type="button" className="ghost sm" onClick={onBrowse}>Change topic</button><button className="primary" type="submit" disabled={!n.learned.trim()}><Check size={16} />Save entry</button></div>
+          </form>
+          <section className="card sw-entries">
+            <div className="card-h"><h2>Your entries on {cur.title}</h2><span className="muted small">{entries.length}</span></div>
+            {entries.length > 0 && <div className="sw-filter">
+              <div className="j-search"><Search size={16} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search these entries…" aria-label="Search entries" /></div>
+              <div className="pr-chips">{[['', 'All'], ['bible', 'Bible'], ...mats.map(x => [x.id, x.title])].map(([v, t]) => { const k = v === '' ? entries.length : v === 'bible' ? entries.filter(x => x.source === 'bible').length : entries.filter(x => x.materialId === v).length; return <button key={v || 'all'} type="button" className={filter === v ? 'on' : ''} disabled={!k && v !== ''} onClick={() => setFilter(v)}>{t}<em>{k}</em></button>; })}</div>
+            </div>}
+            {shown.length === 0 ? <Empty title={entries.length ? 'Nothing matches.' : 'No entries yet.'}><p style={{ margin: 0 }}>Each time you study, write what you learned. Several entries a day is good: a chapter of a book, then a Bible chapter in another version.</p></Empty>
+              : groups.map(gr => (
+                <div key={gr.d} className="sw-day">
+                  <h4>{fmtDate(gr.d, { weekday: 'long', day: 'numeric', month: 'long' })}</h4>
+                  {gr.items.map(x => { const k = x.source === 'bible' ? 'bible' : x.materialId ? (mats.find(y => y.id === x.materialId)?.kind || 'link') : 'link'; const [, , Ic] = matKind(k); return (
+                    <article key={x.id} className="sw-entry">
+                      <p className="sw-what"><Ic size={14} />{what(x) || 'Study'}{x.minutes ? <span> · {x.minutes} min</span> : null}</p>
+                      {x.title && <h5>{x.title}</h5>}
+                      <blockquote>{x.learned}</blockquote>
+                      {x.scripture && <p className="qf-do"><span>Scripture</span>{x.scripture}</p>}
+                      {x.apply && <p className="qf-do"><span>I will</span>{x.apply}</p>}
+                      <button type="button" className="iv-x sw-del" onClick={() => act('STUDY_NOTE_DELETE', { id: x.id })} aria-label="Delete entry"><X size={14} /></button>
+                    </article>
+                  ); })}
+                </div>
+              ))}
+          </section>
+        </div>
+        <aside className="aside even">
+          <section>
+            <h3>Materials</h3>
+            {mats.length ? <ul className="sw-mats">{mats.map(x => { const [, label, Ic] = matKind(x.kind); return (
+              <li key={x.id}><span className="sw-mat-ic"><Ic size={16} /></span><span className="sw-mat-t"><b>{x.title}</b><small>{label}{entries.filter(y => y.materialId === x.id).length ? ` · ${entries.filter(y => y.materialId === x.id).length} entries` : ''}</small></span>
+                {x.url && <a className="fq-ic" href={x.url} target="_blank" rel="noreferrer" aria-label={`Open ${x.title}`}><ExternalLink size={14} /></a>}
+                <button type="button" className="iv-x" onClick={() => act('MATERIAL_DELETE', { id: x.id })} aria-label={`Remove ${x.title}`}><X size={14} /></button></li>
+            ); })}</ul> : <p className="muted small" style={{ marginTop: 0 }}>The books, PDFs, videos and recordings you study this topic from.</p>}
+            <form className="sw-addmat" onSubmit={e => { e.preventDefault(); act('MATERIAL_ADD', { data: { topicId: cur.id, kind: m.kind, title: m.title.trim(), url: m.url.trim() ? (/^[a-z]+:\/\//i.test(m.url.trim()) ? m.url.trim() : `https://${m.url.trim()}`) : '' } }); setM({ kind: m.kind, title: '', url: '' }); toast('Material added'); }}>
+              <div className="sm-kinds">{MAT_KINDS.filter(([k]) => k !== 'bible').map(([k, l2, Ic]) => <button key={k} type="button" className={m.kind === k ? 'on' : ''} onClick={() => setM(x => ({ ...x, kind: k }))}><Ic size={14} />{l2}</button>)}</div>
+              <input value={m.title} onChange={e => setM(x => ({ ...x, title: e.target.value }))} placeholder="Title: The Art of Shepherding" aria-label="Material title" />
+              <input value={m.url} onChange={e => setM(x => ({ ...x, url: e.target.value }))} placeholder="Link (optional): Drive, YouTube, a PDF…" inputMode="url" aria-label="Link" />
+              <button type="submit" className="sm" disabled={!m.title.trim()}><Plus size={14} />Add material</button>
+            </form>
+          </section>
+          <section><TopicReminder topicId={cur.id} /></section>
+          <section className="iv-fill">
+            <h3>All your study</h3>
+            <p className="muted small" style={{ marginTop: 0 }}>Every entry, from every topic, is in your Word journal, where you can filter by topic.</p>
+            <a className="aside-link" href="#/word/journal">Open the journal<ArrowRight size={13} /></a>
+          </section>
+        </aside>
+      </div>
+    </>
+  );
+}
+
 function Study() {
   const { l, g, today, act, toast } = useLife();
   const topics = allTopics(l);
   const cur = topicOf(l, l.study.current);
   const [open, setOpen] = useState(null);
   const [n, setN] = useState({ learned: '', scripture: '', apply: '', minutes: g.studyMinutes });
-  const [custom, setCustom] = useState({ title: '', desc: '' });
+  const [custom, setCustom] = useState({ title: '', desc: '', remind: false, days: [1, 3, 5], time: '20:00' });
   const [browse, setBrowse] = useState(!cur);
   const notes = l.studyNotes.filter(x => x.topicId === l.study.current).sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
   const mins = notes.reduce((s, x) => s + (Number(x.minutes) || 0), 0);
@@ -156,10 +282,15 @@ function Study() {
           })}</div>
         </section>
       ))}
-      <form className="card" onSubmit={(e) => { e.preventDefault(); act('TOPIC_ADD', { data: { title: custom.title.trim(), desc: custom.desc.trim() } }); setCustom({ title: '', desc: '' }); toast('Topic added'); }}>
+      <form className="card" onSubmit={(e) => { e.preventDefault(); act('TOPIC_ADD', { data: { title: custom.title.trim(), desc: custom.desc.trim(), ...(custom.remind ? { remind: { on: true, days: custom.days, time: custom.time } } : {}) } }); setCustom({ title: '', desc: '', remind: false, days: [1, 3, 5], time: '20:00' }); toast(custom.remind ? 'Topic added, with its reminder' : 'Topic added'); }}>
         <div className="card-h"><h2>Add your own topic</h2></div>
         <div className="fields"><div className="field"><label htmlFor="ct-t">Topic</label><input id="ct-t" value={custom.title} onChange={e => setCustom(x => ({ ...x, title: e.target.value }))} placeholder="Eschatology; the anointing; marriage" /></div>
           <div className="field"><label htmlFor="ct-d">Why it matters to you</label><input id="ct-d" value={custom.desc} onChange={e => setCustom(x => ({ ...x, desc: e.target.value }))} /></div></div>
+        <div className={'sw-remind' + (custom.remind ? ' on' : '')}>
+          <label className="sw-remind-h"><span><b>Remind me to study it</b><small>Optional. You can change it later on the topic.</small></span><input type="checkbox" role="switch" checked={custom.remind} onChange={e => setCustom(x => ({ ...x, remind: e.target.checked }))} /><i aria-hidden="true" /></label>
+          {custom.remind && <div className="sw-remind-b"><span className="st-days">{[1, 2, 3, 4, 5, 6, 0].map(d => <button key={d} type="button" className={custom.days.includes(d) ? 'on' : ''} onClick={() => setCustom(x => ({ ...x, days: x.days.includes(d) ? x.days.filter(y => y !== d) : [...x.days, d] }))}>{WD[d][0]}</button>)}</span>
+            <TimeInput value={custom.time} onChange={e => setCustom(x => ({ ...x, time: e.target.value }))} aria-label="Study time" className="st-time" /></div>}
+        </div>
         <button className="sm" type="submit" disabled={!custom.title.trim()}><Plus size={14} />Add topic</button>
       </form>
     </>
@@ -167,39 +298,9 @@ function Study() {
   if (!cur) return <><div className="card pray-cta"><div><b>Choose one topic to study</b><span>Stay with it over days and weeks, writing what you learn each time, until you choose to move on.</span></div></div>{library}</>;
   return (
     <>
-      <div className="cols">
-        <div className="stack">
-          <form className="card study-now" onSubmit={(e) => { e.preventDefault(); act('STUDY_NOTE', { data: { ...n, learned: n.learned.trim(), minutes: Number(n.minutes) || 0 } }); setN(x => ({ ...x, learned: '', scripture: '', apply: '' })); toast('Saved to your journal'); }}>
-            <div className="card-h"><h2>{cur.title}</h2><span className="muted small">Day {days} · since {fmtDate(l.study.since, { day: 'numeric', month: 'long' })}</span></div>
-            {topicGuide(cur) && <p className="study-guide">{topicGuide(cur)}</p>}
-            {cur.refs?.length > 0 && <p className="sd-refs">{cur.refs.map(r => <span key={r}>{r}</span>)}</p>}
-            <h4 className="sd-h">{wroteToday ? 'Something more from today' : 'What are you learning today?'}</h4>
-            <div className="fields">
-              <div className="field wide"><label htmlFor="sn-l">{STUDY_PROMPTS[0]}</label><textarea id="sn-l" value={n.learned} onChange={e => setN(x => ({ ...x, learned: e.target.value }))} style={{ minHeight: 100 }} required /></div>
-              <div className="field"><label htmlFor="sn-s">{STUDY_PROMPTS[1]}</label><input id="sn-s" value={n.scripture} onChange={e => setN(x => ({ ...x, scripture: e.target.value }))} /></div>
-              <div className="field"><label htmlFor="sn-m">Minutes studied</label><input id="sn-m" type="number" min="0" value={n.minutes} onChange={e => setN(x => ({ ...x, minutes: e.target.value }))} /></div>
-              <div className="field wide"><label htmlFor="sn-a">{STUDY_PROMPTS[2]}</label><input id="sn-a" value={n.apply} onChange={e => setN(x => ({ ...x, apply: e.target.value }))} /></div>
-            </div>
-            <div className="fr-foot"><button type="button" className="ghost sm" onClick={() => setBrowse(!browse)}>{browse ? 'Hide the topics' : 'Change topic'}</button><button className="primary" type="submit" disabled={!n.learned.trim()}>Save what I learned</button></div>
-          </form>
-        </div>
-        <aside className="aside even">
-          <section>
-            <h3>Study streak</h3>
-            <TitleBlock className="grid" items={[['Days in a row', st.current], ['Best run', st.best]]} />
-            <div className="pl-week"><span>This week</span><b>{hm(weekMin)} <small>of {hm(g.studyMinutes * elapsed)}</small></b></div>
-            <span className="ch-bar"><i style={{ width: `${Math.min(100, (weekMin / Math.max(1, g.studyMinutes * elapsed)) * 100)}%` }} /></span>
-          </section>
-          <section>
-            <h3>This topic</h3>
-            <TitleBlock className="grid" items={[['Notes', notes.length], ['Time', hm(mins)]]} />
-            {notes.length > 0 && <ul className="sd-notes">{notes.slice(0, 3).map(x => <li key={x.id}><p>{x.learned}</p><small>{fmtDate(x.date, { weekday: 'short', day: 'numeric', month: 'short' })}{x.scripture ? ` · ${x.scripture}` : ''}</small></li>)}</ul>}
-            <a className="aside-link" href="#/word/journal">Everything in your journal<ArrowRight size={13} /></a>
-          </section>
-        </aside>
-      </div>
-      {browse && <div className="sd-library">{library}</div>}
-      {!browse && l.study.history.length > 0 && <section className="card sd-before"><div className="card-h"><h2>Studied before</h2></div>
+      {browse ? <><div className="sw-back"><button type="button" className="sm" onClick={() => setBrowse(false)}><ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />Back to {cur.title}</button></div><div className="sd-library">{library}</div></>
+        : <Workspace cur={cur} onBrowse={() => { setBrowse(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />}
+      {l.study.history.length > 0 && <section className="card sd-before"><div className="card-h"><h2>Studied before</h2></div>
         <ul className="sd-hist">{[...l.study.history].reverse().map((h, i) => <li key={i}><b>{topicOf(l, h.topicId)?.title || 'A topic'}</b><small>{fmtDate(h.from, { day: 'numeric', month: 'short' })} to {fmtDate(h.to, { day: 'numeric', month: 'short', year: 'numeric' })} · {notesFor(h.topicId)} notes</small></li>)}</ul></section>}
     </>
   );
@@ -210,12 +311,14 @@ const KINDS = [['', 'All'], ['plan', 'Bible plan'], ['own', 'Own reading'], ['st
 function Journal() {
   const { l, today, act } = useLife();
   const [kind, setKind] = useState('');
+  const [topic, setTopic] = useState('');
   const [q, setQ] = useState('');
   const [sure, setSure] = useState(null);
+  const studied = [...new Set(l.studyNotes.map(x => x.topicId))].map(id => [id, topicOf(l, id)?.title || 'A topic']);
   const entries = [
     ...l.bible.map(b => ({ id: b.id, date: b.date, kind: b.plan === false ? 'own' : 'plan', what: range(b), text: b.learned || b.note || '', del: () => act('BIBLE_DELETE', { id: b.id }) })),
-    ...l.studyNotes.map(x => ({ id: x.id, date: x.date, kind: 'study', what: topicOf(l, x.topicId)?.title || 'Study', text: x.learned, scripture: x.scripture, apply: x.apply, minutes: x.minutes, del: () => act('STUDY_NOTE_DELETE', { id: x.id }) })),
-  ].filter(e => (!kind || e.kind === kind) && (!q || `${e.what} ${e.text} ${e.scripture || ''} ${e.apply || ''}`.toLowerCase().includes(q.toLowerCase())))
+    ...l.studyNotes.map(x => ({ id: x.id, date: x.date, kind: 'study', topicId: x.topicId, what: `${topicOf(l, x.topicId)?.title || 'Study'}${x.title ? `: ${x.title}` : ''}${x.passage ? ` · ${x.passage}${x.version ? ` (${x.version})` : ''}` : x.part ? ` · ${x.part}` : ''}`, text: x.learned, scripture: x.scripture, apply: x.apply, minutes: x.minutes, del: () => act('STUDY_NOTE_DELETE', { id: x.id }) })),
+  ].filter(e => (!kind || e.kind === kind) && (!topic || e.topicId === topic) && (!q || `${e.what} ${e.text} ${e.scripture || ''} ${e.apply || ''}`.toLowerCase().includes(q.toLowerCase())))
     .sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
   const months = [];
   entries.forEach(x => { const k = x.date.slice(0, 7); const m = months[months.length - 1]; if (m && m.k === k) m.items.push(x); else months.push({ k, items: [x] }); });
@@ -237,8 +340,9 @@ function Journal() {
       </div>
       <div className="jr-bar">
         <div className="j-search"><Search size={17} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search what you have learned…" aria-label="Search the journal" /></div>
-        <div className="jw-kinds" role="group" aria-label="Show">{KINDS.map(([id, t]) => <button key={id} type="button" className={kind === id ? 'on' : ''} onClick={() => setKind(id)}>{t}</button>)}</div>
+        <div className="jw-kinds" role="group" aria-label="Show">{KINDS.map(([id, t]) => <button key={id} type="button" className={kind === id ? 'on' : ''} onClick={() => { setKind(id); if (id !== 'study') setTopic(''); }}>{t}</button>)}</div>
       </div>
+      {kind === 'study' && studied.length > 0 && <div className="pr-chips jw-topics" role="group" aria-label="Topic">{[['', 'Every topic'], ...studied].map(([id, t]) => <button key={id || 'all'} type="button" className={topic === id ? 'on' : ''} onClick={() => setTopic(id)}>{t}<em>{id ? l.studyNotes.filter(x => x.topicId === id).length : l.studyNotes.length}</em></button>)}</div>}
       {entries.length === 0 && <div className="card"><Empty title={q || kind ? 'Nothing matches.' : 'Nothing written yet.'} /></div>}
       {months.map(({ k, items }) => (
         <section key={k} className="card jr-month">

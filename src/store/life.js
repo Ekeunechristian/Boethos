@@ -16,7 +16,10 @@ export function initialLife() {
     quietTimes: [],      // { id, date, start, minutes, passage, heard, learned, apply, prayed }
     bible: [],           // { id, date, book, from, to, minutes, note }
     study: { current: null, since: null, history: [] },   // history: { topicId, from, to }
-    studyNotes: [],      // { id, date, topicId, learned, scripture, apply, minutes }
+    studyNotes: [],      // { id, date, topicId, title, source: bible|material|other, materialId, part, passage, version, learned, scripture, apply, minutes }
+    studyMaterials: [],  // { id, topicId, kind: bible|book|ebook|pdf|video|audio|link, title, url }
+    topicReminders: {},  // { topicId: { on, days: [0–6], time } }
+    hiddenMsgCats: [],   // predefined message topics you removed
     customTopics: [],    // { id, title, desc, refs: [] }
     books: [],           // { id, title, author, for: me|members, status, pages, pagesRead, started, finished, topicId, forWhom, lessons: [{date,text}] }
     readingLog: [],      // { id, date, bookId, minutes, pages }
@@ -64,7 +67,19 @@ export function lifeReducer(l, a, today) {
     }
     case 'L_STUDY_NOTE': return { ...l, studyNotes: [...l.studyNotes, { id: uid('sn'), date: today, topicId: l.study.current, ...a.data }] };
     case 'L_STUDY_NOTE_DELETE': return { ...l, studyNotes: del(l.studyNotes, a.id) };
-    case 'L_TOPIC_ADD': return { ...l, customTopics: [...l.customTopics, { id: uid('tp'), refs: [], ...a.data, custom: true }] };
+    case 'L_TOPIC_ADD': {
+      const id = a.data.id || uid('tp');
+      const { remind, ...data } = a.data;
+      return { ...l, customTopics: [...l.customTopics, { id, refs: [], ...data, custom: true }], topicReminders: remind ? { ...(l.topicReminders || {}), [id]: remind } : (l.topicReminders || {}) };
+    }
+    // A topic's materials, and its own optional reminder
+    case 'L_MATERIAL_ADD': return { ...l, studyMaterials: [...(l.studyMaterials || []), { id: uid('mt'), ...a.data }] };
+    case 'L_MATERIAL_DELETE': return { ...l, studyMaterials: (l.studyMaterials || []).filter(x => x.id !== a.id) };
+    case 'L_TOPIC_REMIND': return { ...l, topicReminders: { ...(l.topicReminders || {}), [a.id]: a.data } };
+    case 'L_STUDY_NOTE_UPDATE': return { ...l, studyNotes: upd(l.studyNotes, a.id, a.data) };
+    // Message topics: hide a predefined one, or bring them back
+    case 'L_MSGCAT_HIDE': return { ...l, hiddenMsgCats: [...new Set([...(l.hiddenMsgCats || []), a.name])], customMsgCats: (l.customMsgCats || []).filter(k => k !== a.name) };
+    case 'L_MSGCAT_RESTORE': return { ...l, hiddenMsgCats: [] };
     case 'L_TOPIC_DELETE': return { ...l, customTopics: del(l.customTopics, a.id), study: l.study.current === a.id ? { ...l.study, current: null } : l.study };
 
     case 'L_BOOK_ADD': return { ...l, books: [...l.books, { id: uid('bk'), for: 'me', status: 'want', pages: '', pagesRead: 0, lessons: [], ...a.data, ...(a.data.status === 'reading' ? { started: today } : {}) }] };
@@ -277,6 +292,17 @@ export function lifeReminders(state, today, nowTime) {
   const book = l.books.find(b => b.status === 'reading' && b.for !== 'members');
   if (r.reading && book && !done('reading')) both('reading', 'reading', g.readingTime || '21:00');
   if (r.prayerLog && !done('prayer')) both('prayerlog', 'prayerlog', g.prayerLogTime || '20:00');
+  const mon = mondayOf(today);
+  const heard = l.listening.filter(x => x.date >= mon && x.date <= today && !x.forMembers).length;
+  if (r.listen && heard < (g.messagesPerWeek || 0)) both('listen', 'listen', g.listenTime || '19:00');
+  if (r.journal && !l.examen?.[today]) both('journal', 'journal', g.journalTime || '21:30');
+  const sunday = addDays(mon, 6);
+  if (r.weekly && weekdayOf(today) === Number(g.weeklyDay ?? 0) && !state.weeklyReviews?.[sunday]) both('weekly', 'weekly', g.weeklyTime || '20:00');
+  Object.entries(l.topicReminders || {}).forEach(([id, tr]) => {
+    if (!tr?.on || !tr.time || !(tr.days || []).includes(weekdayOf(today))) return;
+    if (l.studyNotes.some(x => x.topicId === id && x.date === today)) return;
+    both(`topic-${id}`, 'study', tr.time);
+  });
   return out.filter(x => !l.sent[`${x.key}@${today}`]);
 }
 
@@ -287,6 +313,8 @@ export function lifeWords(state, today, lead = 30) {
   const topic = l.study.current && allTopics(l).find(t => t.id === l.study.current)?.title;
   const book = l.books.find(b => b.status === 'reading' && b.for !== 'members');
   const open = state.prayerRequests.filter(x => !x.answered);
+  const mon0 = mondayOf(today);
+  const heardWeek = l.listening.filter(x => x.date >= mon0 && x.date <= today && !x.forMembers).length;
   const pts = open.slice(0, 2).map(x => x.person ? `${x.person}: ${x.request}` : x.request).join('; ');
   const now = {
     quiet: `Quiet time (${g.quietTime}). Today’s reading: ${portion}.`,
@@ -295,6 +323,9 @@ export function lifeWords(state, today, lead = 30) {
     reading: book ? `Read ${book.title}${book.author ? ` by ${book.author}` : ''} (${g.readingMinutes || 20} min).` : 'Time to read.',
     points: open.length ? `Pray through your prayer points: ${pts}${open.length > 2 ? ` and ${open.length - 2} more` : ''}.` : 'Pray through your prayer points.',
     prayerlog: 'Log today’s prayer before you sleep.',
+    listen: `Listen to a message or a camp: ${heardWeek} of ${g.messagesPerWeek || 0} this week so far.`,
+    journal: 'Close the day: write tonight’s journal. What did you see of God today?',
+    weekly: 'Write about your week: five questions, ten minutes.',
     fast: `Today is a fast day, until ${g.fastUntil || '18:00'}.`, fasteve: 'Tomorrow is a fast day.',
   };
   const soon = {
@@ -304,11 +335,20 @@ export function lifeWords(state, today, lead = 30) {
     reading: book ? `In ${lead} minutes: read ${book.title}.` : `In ${lead} minutes: reading.`,
     points: `In ${lead} minutes: pray through your prayer points.`,
     prayerlog: `In ${lead} minutes: log today’s prayer.`,
+    listen: `In ${lead} minutes: listen to a message or a camp.`,
+    journal: `In ${lead} minutes: close the day with your journal.`,
+    weekly: `In ${lead} minutes: write about your week.`,
   };
   const words = (kind, key, date, isSoon, t) => {
+    if (kind.startsWith('topic-')) {
+      const id = kind.slice(6), tp = allTopics(l).find(x => x.id === id);
+      const lastMat = (l.studyMaterials || []).filter(x => x.topicId === id).slice(-1)[0];
+      const text = `${isSoon ? `In ${lead} minutes: study` : 'Study'} ${tp?.title || 'your topic'}${lastMat ? `. Continue with ${lastMat.title}` : ''}.`;
+      return `${text} ${remindVerse('study', `${key}@${date}`).line}`;
+    }
     const w = (isSoon ? soon : now)[kind];
     const text = typeof w === 'function' ? w(t) : w;
-    return `${text} ${remindVerse(kind === 'fast' || kind === 'fasteve' ? 'fasting' : kind, `${key}@${date}`).line}`;
+    return `${text} ${remindVerse({ fast: 'fasting', fasteve: 'fasting', listen: 'word', journal: 'quiet', weekly: 'quiet' }[kind] || kind, `${key}@${date}`).line}`;
   };
   return words;
 }
@@ -324,7 +364,7 @@ export function lifeSchedule(state, today) {
   const out = [];
   for (let i = 0; i < 7; i++) {
     const d = addDays(today, i);
-    const kindOf = (key) => (key.startsWith('prayer-') ? 'prayer' : key.replace(/-soon$/, ''));
+    const kindOf = (key) => (key.startsWith('prayer-') ? 'prayer' : key.replace(/-soon$/, ''));   // topic-<id> keeps its id
     const one = (key, cat, t) => { if (t && !(i === 0 && l.sent[`${key}@${d}`])) out.push({ key: `life-${key}@${d}`, cat, sendAt: zonedToUtc(d, t, tz), body: words(kindOf(key), key.replace(/-soon$/, ''), d, key.endsWith('-soon'), key.startsWith('prayer-') ? key.slice(7).replace(/-soon$/, '') : t) }); };
     const add = (key, cat, t, heads = true) => {
       if (!t) return;
@@ -340,6 +380,10 @@ export function lifeSchedule(state, today) {
     if (r.points && state.prayerRequests.some(x => !x.answered)) add('points', 'points', g.pointsTime || '12:00');
     if (r.prayerLog) add('prayerlog', 'prayerlog', g.prayerLogTime || '20:00');
     if (r.reading && l.books.some(b => b.status === 'reading' && b.for !== 'members')) add('reading', 'reading', g.readingTime || '21:00');
+    if (r.listen && g.messagesPerWeek) add('listen', 'listen', g.listenTime || '19:00');
+    if (r.journal && !(i === 0 && l.examen?.[d])) add('journal', 'journal', g.journalTime || '21:30');
+    if (r.weekly && weekdayOf(d) === Number(g.weeklyDay ?? 0)) add('weekly', 'weekly', g.weeklyTime || '20:00');
+    Object.entries(l.topicReminders || {}).forEach(([id, tr]) => { if (tr?.on && tr.time && (tr.days || []).includes(weekdayOf(d))) add(`topic-${id}`, 'study', tr.time); });
   }
   const now = new Date().toISOString();
   return out.filter(x => x.sendAt > now);

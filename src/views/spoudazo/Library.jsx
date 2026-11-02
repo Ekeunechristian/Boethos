@@ -140,13 +140,17 @@ function Reading() {
 // Categories, with your own added
 function useCats() {
   const { l } = useLife();
-  return [...MESSAGE_CATS.filter(c => c !== 'Other'), ...(l.customMsgCats || []), 'Other'];
+  const hidden = l.hiddenMsgCats || [];
+  return [...MESSAGE_CATS.filter(c => c !== 'Other' && !hidden.includes(c)), ...(l.customMsgCats || []), 'Other'];
 }
 
 // ── Messages: paste the link, give it a topic ──
 function Messages() {
   const { l, g, today, act, toast } = useLife();
   const cats = useCats();
+  const catOf = (x) => (cats.includes(x.category) ? x.category : 'Other');   // a removed topic's messages show under Other
+  const [editCats, setEditCats] = useState(false);
+  const [catName, setCatName] = useState('');
   const [f, setF] = useState({ link: '', title: '', speaker: DHM, category: cats[0], date: today, minutes: '', takeaway: '' });
   const [newCat, setNewCat] = useState(null);
   const [cat, setCat] = useState('');
@@ -158,8 +162,8 @@ function Messages() {
   // weeks in a row you reached your goal (this week counts once it is reached)
   const weekMet = (i) => { const from = addDays(mon, -7 * i); return all.filter(x => x.date >= from && x.date <= addDays(from, 6)).length >= goal; };
   let run = 0; for (let i = weekMet(0) ? 0 : 1; i < 104 && weekMet(i); i++) run++;
-  const byCat = cats.map(c => [c, all.filter(x => (x.category || 'Other') === c).length]).filter(([, n]) => n);
-  const list = all.filter(x => (!cat || (x.category || 'Other') === cat) && (!q || `${x.title} ${x.speaker} ${x.takeaway}`.toLowerCase().includes(q.toLowerCase()))).sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
+  const byCat = cats.map(c => [c, all.filter(x => catOf(x) === c).length]).filter(([, n]) => n);
+  const list = all.filter(x => (!cat || catOf(x) === cat) && (!q || `${x.title} ${x.speaker} ${x.takeaway}`.toLowerCase().includes(q.toLowerCase()))).sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
   const add = (e) => {
     e.preventDefault();
     act('LISTEN_ADD', { data: { kind: 'message', link: safeLink(f.link), title: f.title.trim(), speaker: f.speaker.trim(), category: f.category, date: f.date, minutes: Number(f.minutes) || 0, takeaway: f.takeaway.trim() } });
@@ -193,10 +197,15 @@ function Messages() {
             <Streak n={week} unit={`of ${goal} this week`} rows={[['Weeks in a row', run], ['This month', all.filter(x => x.date.startsWith(today.slice(0, 7))).length], ['All messages', all.length]]} />
           </section>
           <section>
-            <h3>By topic</h3>
-            <ul className="lb-topics">{cats.map(c => { const n = all.filter(x => (x.category || 'Other') === c).length; return (
-              <li key={c}><button type="button" className={(cat === c ? 'on' : '') + (n ? '' : ' none')} onClick={() => setCat(cat === c ? '' : c)}><span>{c}</span><em>{n || '–'}</em></button></li>
+            <h3 className="lb-topics-h">By topic<button type="button" className="ghost sm" onClick={() => setEditCats(!editCats)}>{editCats ? 'Done' : 'Edit topics'}</button></h3>
+            <ul className="lb-topics">{cats.map(c => { const n = all.filter(x => catOf(x) === c).length; return (
+              <li key={c} className={editCats && c !== 'Other' ? 'editing' : ''}><button type="button" className={(cat === c ? 'on' : '') + (n ? '' : ' none')} onClick={() => setCat(cat === c ? '' : c)}><span>{c}</span><em>{n || '–'}</em></button>
+                {editCats && c !== 'Other' && <button type="button" className="iv-x" onClick={() => { act('MSGCAT_HIDE', { name: c }); if (cat === c) setCat(''); toast(`${c} removed${n ? '; its messages now show under Other' : ''}`); }} aria-label={`Remove ${c}`}><X size={14} /></button>}</li>
             ); })}</ul>
+            {editCats && <form className="lb-catadd" onSubmit={e => { e.preventDefault(); const c = catName.trim(); if (c) { act('MSGCAT_ADD', { name: c }); setCatName(''); toast(`${c} added`); } }}>
+              <input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Add a topic: Prophecy, Youth…" aria-label="New topic" /><button type="submit" className="sm" disabled={!catName.trim()}><Plus size={14} />Add</button>
+            </form>}
+            {editCats && (l.hiddenMsgCats || []).length > 0 && <button type="button" className="linklike lb-restore" onClick={() => { act('MSGCAT_RESTORE'); toast('The original topics are back'); }}>Bring back the {l.hiddenMsgCats.length} topics you removed</button>}
           </section>
         </aside>
       </div>

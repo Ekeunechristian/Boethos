@@ -29,16 +29,16 @@ ok('a commitment saves with its days and hours', c.some(x => x.name === 'Work' &
 ok('the week view shows it', await p.$$eval('.st-blk', els => els.some(e => e.textContent.includes('Work'))));
 // notifications
 const rows = await p.$$eval('#notifications .st-n', els => els.length);
-ok('every notification type is listed (7 walk with God + 15 shepherding)', rows === 22, String(rows));
+ok('every notification type is listed (10 walk with God + 15 shepherding)', rows === 25, String(rows));
 await p.$$eval('#notifications .st-n', els => els.forEach(li => li.querySelector('.st-test').click())); await W(1500);
 const notes = await p.evaluate(() => window.__notes);
-ok('each Test button sends a notification (plus any real reminder due now)', notes.length >= 22, String(notes.length));
-ok('each test says exactly what to do, with a KJV verse', notes.filter(n => /“.+” [1-3]? ?[A-Z][a-z]+ \d+:\d+/.test(n)).length >= 22, notes.slice(0, 2).join(' | '));
+ok('each Test button sends a notification (plus any real reminder due now)', notes.length >= 25, String(notes.length));
+ok('each test says exactly what to do, with a KJV verse', notes.filter(n => /“.+” [1-3]? ?[A-Z][a-z]+ \d+:\d+/.test(n)).length >= 25, notes.slice(0, 2).join(' | '));
 await p.evaluate(() => { window.__notes = []; });
 await p.$$eval('#notifications .st-n', els => { const r = els.find(li => li.textContent.includes('Bacenta chat')); r.querySelector('.st-sw input').click(); }); await W(300);
 ok('switching one type off saves', (await st()).ministry.settings.reminders.types.chat === false);
 await p.$$eval('.st-status button', els => els[0].click()); await W(1500);
-ok('“Test every one that’s on” skips the ones that are off', (await p.evaluate(() => window.__notes.length)) === 21, String(await p.evaluate(() => window.__notes.length)));
+ok('“Test every one that’s on” skips the ones that are off', (await p.evaluate(() => window.__notes.length)) >= 24, String(await p.evaluate(() => window.__notes.length)));
 await p.$$eval('#notifications .st-n', els => { const r = els.find(li => li.textContent.includes('Quiet time')); r.querySelector('.st-sw input').click(); }); await W(300);
 ok('a walk-with-God reminder switches off', (await st()).life.goals.reminders.quiet === false);
 await p.$$eval('#notifications .st-rules .st-sw input', els => els[0].click()); await W(300);

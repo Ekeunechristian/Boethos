@@ -101,8 +101,8 @@ ok('the kept morning is shown', !!(await p.$('.qf-kept')));
 // Study topic
 await p.goto(URL + '#/word/study', { waitUntil: 'networkidle0' }); await wait();
 await p.$$eval('.topic .tp-foot button', els => els.find(e => e.textContent === 'Focus on this').click()); await wait();
-await p.type('#sn-l', 'Apologetics begins with a holy life.');
-await p.$eval('.study-now button[type=submit]', el => el.click()); await wait();
+await p.type('#sw-l', 'Apologetics begins with a holy life.');
+await p.$eval('.sw-new button[type=submit]', el => el.click()); await wait();
 s = await S();
 ok('choosing a topic and writing what you learned', s.life.study.current && s.life.studyNotes.length === 1 && s.life.studyNotes[0].topicId === s.life.study.current);
 await p.goto(URL + '#/word/journal', { waitUntil: 'networkidle0' }); await wait();

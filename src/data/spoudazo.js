@@ -118,6 +118,6 @@ export const DEFAULT_GOALS = {
   fastDays: [], fastUntil: '18:00',
   memoryPerMonth: 2,
   fastsPerWeek: 1,                       // at least one fast a week
-  pointsTime: '12:00', prayerLogTime: '20:00',
-  reminders: { quiet: true, prayer: true, study: true, fasting: true, points: true, prayerLog: true, reading: true },
+  pointsTime: '12:00', prayerLogTime: '20:00', listenTime: '19:00', journalTime: '21:30', weeklyDay: 0, weeklyTime: '20:00',
+  reminders: { quiet: true, prayer: true, study: true, fasting: true, points: true, prayerLog: true, reading: true, listen: true, journal: true, weekly: true },
 };

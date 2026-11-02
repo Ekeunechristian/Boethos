@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Plus, ArrowRight, Trash2, Check } from 'lucide-react';
 import { CAMPAIGNS, MANUAL_STARTUP, SHARED_SUPPORT } from '../../data/ministry';
-import { campaignProgress, addDays } from '../../store/ministry';
+import { campaignProgress, addDays, mondayOf } from '../../store/ministry';
+import { STAGES, ACTIONS, FIRST_MONTH, AFTER_MONTH, weekFacts, stageFor, activeCampaigns, campaignsAt, progress } from '../../store/growth';
+import { useStore } from '../../store/index.jsx';
 import { Head, Seg, Empty, TitleBlock, Picker, Bar, Sheet, SheetHead, fmtDate, useToast } from '../../lib/ui.jsx';
 import { go } from '../../lib/router';
 import { useM, tplOf, Label } from './common.jsx';
@@ -220,20 +222,139 @@ function Startup() {
   );
 }
 
-const TABS = [['', 'Strategy (22)'], ['startup', 'Start-up preset']];
-export default function Campaigns({ sub }) {
+// ── Campaigns, for the Bacenta you have: this week's actions, your first month, and the plan as you grow ──
+function ActionRow({ a, facts, week }) {
+  const { m, tick } = useM();
+  const ticked = !!(m.campaignTicks || {})[week]?.[a.id];
+  const [got, target, done] = progress(a, facts, ticked);
+  const auto = !!a.got;
+  return (
+    <li className={'cg-act' + (done ? ' done' : '')}>
+      {auto ? <span className={'cg-ring' + (done ? ' done' : '')} aria-hidden="true">{done ? <Check size={14} /> : `${Math.min(got, target)}`}</span>
+        : <button type="button" className={'cg-tick' + (done ? ' done' : '')} onClick={() => tick(week, a.id, !ticked)} aria-pressed={ticked} aria-label={ticked ? 'Mark as not done' : 'Mark as done'}>{done && <Check size={14} />}</button>}
+      <span className="cg-act-t"><b>{a.text}</b>
+        {auto && <span className="cg-bar"><i style={{ width: `${target ? Math.min(100, (got / target) * 100) : 0}%` }} /></span>}
+        <small>{auto ? `${got} of ${target} this week · counted from what you record` : done ? 'Done this week' : 'Tick it when it’s done'}</small></span>
+      {a.href && <a className="fq-ic" href={a.href} aria-label="Go and do it"><ArrowRight size={15} /></a>}
+    </li>
+  );
+}
+
+function ThisWeek({ facts, week }) {
   const { m } = useM();
-  if (sub && sub !== 'startup') return <CampaignPage id={sub} />;
+  const stage = stageFor(facts.size);
+  const camps = activeCampaigns(facts.size);
+  const all = camps.flatMap(c => ACTIONS[c.n] || []);
+  const doneN = all.filter(a => progress(a, facts, (m.campaignTicks || {})[week]?.[a.id])[2]).length;
+  return (
+    <div className="cols">
+      <div className="stack">
+        <section className="card cg-now">
+          <div className="cg-now-n"><b>{doneN}</b><span>/ {all.length}</span><small>done this week</small></div>
+          <div className="cg-now-t"><em>{stage.label}</em><p>{stage.about} These are the campaigns for a Bacenta of {facts.size} {facts.size === 1 ? 'person' : 'people'}; more start as you grow.</p></div>
+          <span className="ch-bar"><i style={{ width: `${all.length ? (doneN / all.length) * 100 : 0}%` }} /></span>
+        </section>
+        {camps.map(c => (
+          <section key={c.n} className="card cg-camp">
+            <div className="card-h"><h2>{c.label}</h2><span className="muted small">{c.ch} · {c.source}</span></div>
+            <p className="cg-why">{c.emphasis}</p>
+            <ul className="cg-acts">{(ACTIONS[c.n] || []).map(a => <ActionRow key={a.id} a={a} facts={facts} week={week} />)}</ul>
+          </section>
+        ))}
+      </div>
+      <aside className="aside even">
+        <section>
+          <h3>Your Bacenta now</h3>
+          <div className="cg-size"><b>{facts.size}</b><span>{facts.size === 1 ? 'person' : 'people'} who have come to church</span></div>
+          <ol className="cg-stages">{STAGES.map(s => (
+            <li key={s.id} className={s.id === stage.id ? 'now' : facts.size > s.to ? 'past' : ''}><b>{s.label}</b><span>{s.to === Infinity ? `${s.from}+` : `${s.from}–${s.to}`} people</span></li>
+          ))}</ol>
+          {stage.to !== Infinity && <p className="muted small">{stage.to + 1 - facts.size} more {stage.to + 1 - facts.size === 1 ? 'person' : 'people'} and the next campaigns begin. See them under <a href="#/poimaino/campaigns/grow">As you grow</a>.</p>}
+        </section>
+        <section>
+          <h3>This week so far</h3>
+          <ul className="sl-places">
+            <li><span>Days out evangelising</span><b>{facts.outreachDays}</b></li>
+            <li><span>People reached with the gospel</span><b>{facts.reached}</b></li>
+            <li><span>Led to Christ (recorded)</span><b>{facts.professions}</b></li>
+            <li><span>Telepastored</span><b>{facts.teleDone} / {facts.teleAll}</b></li>
+            <li><span>Days with two hours of prayer</span><b>{facts.prayer2h}</b></li>
+            <li><span>Shared in the Bacenta chat</span><b>{facts.chat}</b></li>
+            <li><span>Last Thursday · last Saturday</span><b>{facts.thu} · {facts.sat}</b></li>
+          </ul>
+        </section>
+        <section className="iv-fill">
+          <h3>How this works</h3>
+          <p className="muted small" style={{ margin: 0 }}>Each campaign is a few things to do this week. Where Boēthos already records the real thing (outreach, telepastoring, prayer, attendance, the chat), the progress fills itself in. The rest you tick. A new week starts every Monday.</p>
+        </section>
+      </aside>
+    </div>
+  );
+}
+
+function FirstMonth({ facts, week }) {
+  const { m } = useM();
+  const doneN = FIRST_MONTH.filter(a => progress(a, facts, (m.campaignTicks || {})[week]?.[a.id])[2]).length;
+  return (
+    <div className="cols">
+      <div className="stack">
+        <section className="card cg-now">
+          <div className="cg-now-n"><b>{doneN}</b><span>/ {FIRST_MONTH.length}</span><small>this week</small></div>
+          <div className="cg-now-t"><em>The first month</em><p>The start-up rhythm from the Bacenta manual, as this week’s targets. Most of it is counted from what you already record.</p></div>
+          <span className="ch-bar"><i style={{ width: `${(doneN / FIRST_MONTH.length) * 100}%` }} /></span>
+        </section>
+        <section className="card"><ul className="cg-acts">{FIRST_MONTH.map(a => <ActionRow key={a.id} a={a} facts={facts} week={week} />)}</ul></section>
+      </div>
+      <aside className="aside even">
+        <section>
+          <h3>After the first month</h3>
+          <ul className="cg-after">{AFTER_MONTH.map(x => <li key={x}>{x}</li>)}</ul>
+        </section>
+        <section className="iv-fill">
+          <h3>Where it comes from</h3>
+          <p className="muted small" style={{ margin: 0 }}>The Bacenta manual (B p.20). Aims, not quotas: people led to Christ are what you record from real encounters, never guessed.</p>
+        </section>
+      </aside>
+    </div>
+  );
+}
+
+function AsYouGrow({ facts }) {
+  const stage = stageFor(facts.size);
+  return (
+    <div className="stack">
+      {STAGES.map(s => { const camps = campaignsAt(s.id); const now = s.id === stage.id, past = facts.size > s.to; return (
+        <section key={s.id} className={'card cg-grow' + (now ? ' now' : past ? ' past' : '')}>
+          <div className="card-h"><h2>{s.label}<em>{s.to === Infinity ? `${s.from}+ people` : `${s.from}–${s.to} people`}</em></h2><span className={'tl-st ' + (now ? 'today' : past ? 'ok' : '')}>{now ? 'You are here' : past ? 'Running' : `Starts at ${s.from}`}</span></div>
+          <p className="cg-why">{s.about}</p>
+          <ul className="cg-list">{camps.map(c => (
+            <li key={c.n}><b>{c.label}</b><span>{c.emphasis}</span><small>What you’ll do: {(ACTIONS[c.n] || []).map(a => a.text.charAt(0).toLowerCase() + a.text.slice(1)).join('; ')}.</small></li>
+          ))}</ul>
+        </section>
+      ); })}
+    </div>
+  );
+}
+
+const CTABS = [['', 'This week'], ['first', 'Your first month'], ['grow', 'As you grow']];
+export default function Campaigns({ sub }) {
+  const { m, today } = useM();
+  const { state } = useStore();
+  if (sub && !CTABS.some(([id]) => id === sub)) return <CampaignPage id={sub} />;
   const t = sub || '';
-  const active = m.campaigns.filter(c => c.status === 'active').length;
+  const facts = weekFacts(state, today);
+  const week = mondayOf(today);
   return (
     <>
-      <Head back={{ href: '#/poimaino', label: 'Dashboard' }} eyebrow="Poimainō" step={`${active} active`} title="Campaigns" sub="Purposeful, organised, sustained activity (D4), with the essential activities running together continuously (D5).">
-        <TitleBlock items={[['Established', new Set(m.campaigns.filter(c => c.n && !['archived', 'cancelled'].includes(c.status)).map(c => c.n)).size + ' / 22'], ['Active', active]]} />
-      </Head>
+      <Head back={{ href: '#/poimaino', label: 'Dashboard' }} eyebrow="Poimainō" step={`${stageFor(facts.size).label} · ${facts.size} people`} title="Campaigns"
+        sub="The campaigns that fit your Bacenta now, as things to do this week. More begin as it grows." />
       <div style={{ marginBottom: 12 }}><Seg value="campaigns" onChange={(v) => (v === 'campaigns' ? null : go('poimaino', ...(v ? [v] : [])))} options={[['', 'Action centre'], ['vision', 'Vision 25'], ['week', 'Weekly review'], ['campaigns', 'Campaigns']]} /></div>
-      <div style={{ marginBottom: 22 }}><Seg value={t} onChange={(v) => go('poimaino', 'campaigns', ...(v ? [v] : []))} options={TABS} /></div>
-      {t === 'startup' ? <Startup /> : <Strategy />}
+      <div style={{ marginBottom: 22 }}><Seg value={t} onChange={(v) => go('poimaino', 'campaigns', ...(v ? [v] : []))} options={CTABS} /></div>
+      {t === '' && <ThisWeek facts={facts} week={week} />}
+      {t === 'first' && <FirstMonth facts={facts} week={week} />}
+      {t === 'grow' && <AsYouGrow facts={facts} />}
+      {m.campaigns.length > 0 && t === '' && <section className="card" style={{ marginTop: 20 }}><div className="card-h"><h2>Campaigns you set up before</h2></div>
+        <ul className="cg-list">{m.campaigns.map(c => <li key={c.id}><a href={`#/poimaino/campaigns/${c.id}`}><b>{c.label || c.name}</b></a><small>{c.status}</small></li>)}</ul></section>}
     </>
   );
 }

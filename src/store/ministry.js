@@ -258,6 +258,8 @@ export function ministryReducer(m, a, today) {
       const people = responded ? m.people.map(p => (p.id === a.personId ? { ...p, lastContact: today } : p)) : m.people;
       return { ...m, followUps, invitations, people };
     }
+    // This week's campaign actions you tick yourself: { 'YYYY-MM-DD (Monday)': { actionId: true } }
+    case 'M_CAMPAIGN_TICK': { const wk = { ...((m.campaignTicks || {})[a.week] || {}) }; if (a.on) wk[a.id] = true; else delete wk[a.id]; return { ...m, campaignTicks: { ...(m.campaignTicks || {}), [a.week]: wk } }; }
     // The Bacenta chat: what you plan to share, and what you shared
     case 'M_CHAT_PLAN': { const plan = { ...(m.chatPlan || {}) }; if ((a.text || '').trim()) plan[a.date] = a.text; else delete plan[a.date]; return { ...m, chatPlan: plan }; }
     case 'M_CHAT_POST': return { ...m, chatPosts: [...(m.chatPosts || []), { id: uid('chat'), date: today, text: a.text || '' }] };

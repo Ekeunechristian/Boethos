@@ -39,6 +39,7 @@ export function useM() {
     resolve: (id, status, extra = {}) => dispatch({ type: 'M_FOLLOW_RESOLVE', id, status, ...extra }),
     pvci: (data) => dispatch({ type: 'M_PVCI', ...data }),
     tele: (data) => dispatch({ type: 'M_TELE', ...data }),
+    tick: (week, id, on) => dispatch({ type: 'M_CAMPAIGN_TICK', week, id, on }),
     spreadCallDays: () => dispatch({ type: 'M_CALLDAYS_SPREAD' }),
     chatPlan: (date, text) => dispatch({ type: 'M_CHAT_PLAN', date, text }),
     chatPost: (text) => dispatch({ type: 'M_CHAT_POST', text }),

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import TimeInput from '../lib/TimeInput.jsx';
-import { Bell, BellOff, Sunrise, HandHeart, BookOpen, Flame, ListChecks, Library, Moon, PhoneCall, AlarmClock, CalendarCheck, Church, ClipboardCheck, Users, Mic, Footprints, MessageCircle, NotebookPen, Sparkles, LifeBuoy, Megaphone, Home, Send } from 'lucide-react';
+import { Headphones, Bell, BellOff, Sunrise, HandHeart, BookOpen, Flame, ListChecks, Library, Moon, PhoneCall, AlarmClock, CalendarCheck, Church, ClipboardCheck, Users, Mic, Footprints, MessageCircle, NotebookPen, Sparkles, LifeBuoy, Megaphone, Home, Send } from 'lucide-react';
 import { useStore } from '../store/index.jsx';
 import { useToast } from '../lib/ui.jsx';
 import { NOTIFY_TYPES, notifySample, teleTimes, localDay } from '../store/ministry';
@@ -17,6 +17,9 @@ const LIFE_TYPES = [
   { id: 'study', icon: BookOpen, label: 'Bible study', desc: 'At your study time, while you have a study topic.', time: 'studyTime', sample: 'Time for your Bible study.' },
   { id: 'reading', icon: Library, label: 'Reading', desc: 'At your reading time, for the book you are reading.', time: 'readingTime', sample: 'Time to read your book.' },
   { id: 'fasting', icon: Flame, label: 'Fast days', desc: 'The morning of a fast day, and at 20:00 the evening before.', time: 'wake', sample: 'Today is a fast day.' },
+  { id: 'listen', icon: Headphones, label: 'Messages and camps', desc: 'While you are behind your weekly goal of messages to listen to.', time: 'listenTime' },
+  { id: 'journal', icon: NotebookPen, label: 'Close the day', desc: 'Your journal for tonight, if it isn’t written yet.', time: 'journalTime' },
+  { id: 'weekly', icon: CalendarCheck, label: 'Your week', desc: 'The weekly review, on your review day, if it isn’t written yet.', time: 'weeklyTime', day: true },
 ];
 const PM_ICON = { tele: PhoneCall, deadline: AlarmClock, followups: CalendarCheck, visits: Home, meetingSoon: Church, attendance: ClipboardCheck, prepare: Users, sermon: Mic, evangelism: Footprints, chat: MessageCircle, pvti: NotebookPen, welcome: Sparkles, absence: Users, care: LifeBuoy, campaigns: Megaphone };
 
@@ -98,8 +101,9 @@ export default function NotificationsCard() {
         <div className="st-group-h"><h3>Your walk with God</h3><span>{lifeOn} of {LIFE_TYPES.length} on</span></div>
         <ul className="st-list">{LIFE_TYPES.map(x => (
           <Row key={x.id} icon={x.icon} label={x.label} desc={x.desc} on={!!lr[x.id]} onToggle={v => setLife({ reminders: { [x.id]: v } })} onTest={() => test(lifeSample(x))}
-            when={x.times ? <a href="#rhythm" className="st-link" onClick={e => { e.preventDefault(); document.getElementById('rhythm')?.scrollIntoView({ behavior: 'smooth' }); }}>{(g[x.times] || []).join(', ') || 'No times'}</a> : time(x.time, g[x.time])} />
+            when={x.day ? <span className="st-num"><select value={String(g.weeklyDay ?? 0)} onChange={e => setLife({ weeklyDay: Number(e.target.value) })} aria-label="Review day">{['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((d, i) => <option key={d} value={i}>{d.slice(0, 3)}</option>)}</select>{time(x.time, g[x.time] || '20:00')}</span> : x.times ? <a href="#rhythm" className="st-link" onClick={e => { e.preventDefault(); document.getElementById('rhythm')?.scrollIntoView({ behavior: 'smooth' }); }}>{(g[x.times] || []).join(', ') || 'No times'}</a> : time(x.time, g[x.time] || { listenTime: '19:00', journalTime: '21:30' }[x.time])} />
         ))}</ul>
+        <p className="st-note">Each study topic can have its own reminder too: open the topic on <a href="#/word/study" className="st-link">The Word → Study</a> and switch on “Remind me to study this”.</p>
       </div>
 
       <div className="st-group">
